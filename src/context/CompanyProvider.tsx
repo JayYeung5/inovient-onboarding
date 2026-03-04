@@ -1,19 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-
+import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 
 type AuthContextType = {
   user: User | null;
@@ -23,9 +13,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
 });
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);
 
 export default function AuthProvider({
   children,
@@ -44,9 +32,11 @@ export default function AuthProvider({
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
+        const allUsers = await getDocs(collection(db, "users"));
+
         await setDoc(ref, {
           email: u.email,
-          role: "user",
+          role: allUsers.empty ? "admin" : "user",
           createdAt: new Date(),
         });
       }

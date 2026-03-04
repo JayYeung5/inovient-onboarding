@@ -1,28 +1,38 @@
 "use client";
 
-import { useContext } from "react";
-import { AuthContext } from "@/components/AuthProvider";
-import { login, logout } from "@/lib/auth";
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function AuthButton() {
-  const user = useContext(AuthContext);
+  const { user } = useAuth();
+
+  async function login() {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  }
+
+  async function logout() {
+    await signOut(auth);
+  }
+
+  if (!user) {
+    return (
+      <button
+        onClick={login}
+        className="bg-black text-white px-4 py-2 rounded"
+      >
+        Login
+      </button>
+    );
+  }
 
   return (
     <button
-      onClick={user ? logout : login}
-      className="
-        px-4 py-2
-        rounded-lg
-        border
-        border-gray-300
-        bg-white
-        hover:bg-gray-100
-        shadow-sm
-        transition
-        font-medium
-      "
+      onClick={logout}
+      className="bg-gray-200 px-4 py-2 rounded"
     >
-      {user ? "Logout" : "Login"}
+      Logout
     </button>
   );
 }
