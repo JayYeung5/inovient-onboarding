@@ -47,6 +47,7 @@ export default function AuthProvider({
         await setDoc(ref, {
           email: u.email,
           role: "user",
+          companyIds: [],
           createdAt: new Date(),
         });
       }

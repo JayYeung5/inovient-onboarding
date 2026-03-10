@@ -10,6 +10,8 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  updateDoc,
+  arrayUnion
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -25,10 +27,16 @@ export default function CompaniesPage() {
   async function createCompany() {
     if (!user) return;
 
-    await addDoc(collection(db, "companies"), {
+    const companyRef = await addDoc(collection(db, "companies"), {
       name,
       createdBy: user.uid,
+      members: [user.uid],
       createdAt: serverTimestamp(),
+    });
+    const userRef = doc(db, "users", user.uid);
+
+    await updateDoc(userRef, {
+    companyIds: arrayUnion(companyRef.id),
     });
 
     setName("");
