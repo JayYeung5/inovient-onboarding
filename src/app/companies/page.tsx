@@ -16,9 +16,11 @@ import {
 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
+import { useRouter } from "next/navigation"
 
 export default function CompaniesPage() {
   const { user } = useAuth();
+  const router = useRouter();
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [name, setName] = useState("");
@@ -103,7 +105,11 @@ export default function CompaniesPage() {
 
       <div className="space-y-2">
         {companies.map((c) => (
-          <div key={c.id} className="border p-3 rounded">
+          <div
+            key={c.id}
+            onClick={() => router.push(`/companies/${c.id}`)}
+            className="border p-3 rounded cursor-pointer hover:bg-gray-100"
+          >
             {c.name}
           </div>
         ))}
