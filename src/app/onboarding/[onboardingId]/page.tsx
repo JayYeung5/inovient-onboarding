@@ -66,32 +66,76 @@ export default function OnboardingPage(){
     }
 
 }
-    async function submitWave() {
+async function generateParsers() {
 
-    // determine next possible questions
-    const next = getNextWave(answers)
+  const examples = answers.q31
+  if (!examples) return
 
-    // remove questions already answered
-    const unanswered = next.filter((qid) => answers[qid] === undefined)
+  const res = await fetch("/api/generate-parser", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      examples
+    })
+  })
 
-    // onboarding finished
-    if (unanswered.length === 0) {
+  const data = await res.json()
 
-        await saveAnswers()
+  console.log("PARSER GENERATED:", data)
 
-        console.log("ONBOARDING COMPLETE")
+  const parsers = data.parsers
 
-        alert("Onboarding complete!")
+  for (const channel in parsers) {
 
-        router.push("/companies")
+    const parser = parsers[channel]
 
-        return
-    }
+    await fetch("/api/store-parser", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        companyId,
+        channel,
+        structure: parser.structure,
+        luaScript: parser.lua
+      })
+    })
 
-    // move to next wave
-    setCurrentWave(unanswered)
+  }
 
-    }
+}
+
+async function submitWave() {
+
+        // determine next possible questions
+        const next = getNextWave(answers)
+
+        // remove questions already answered
+        const unanswered = next.filter((qid) => answers[qid] === undefined)
+
+        // onboarding finished
+        if (unanswered.length === 0) {
+
+            await saveAnswers()
+
+            await generateParsers()
+
+            console.log("ONBOARDING COMPLETE")
+
+            alert("Onboarding complete!")
+
+            router.push("/companies")
+
+            return
+        }
+
+        // move to next wave
+        setCurrentWave(unanswered)
+
+        }
 
   return (
 
@@ -140,6 +184,41 @@ export default function OnboardingPage(){
                 ))}
             </select>
             )}
+            {q.type === "channel_examples" && (
+
+            <div className="space-y-6">
+
+                {(answers.q18 || []).map((channel: string) => (
+
+                <div key={channel} className="space-y-2">
+
+                    <div className="font-semibold">
+                    {channel} campaign example
+                    </div>
+
+                    <input
+                    className="border p-2 w-full"
+                    placeholder="Paste campaign naming example"
+                    onChange={(e) => {
+
+                        setAnswers((prev:any) => ({
+                        ...prev,
+                        q31: {
+                            ...prev.q31,
+                            [channel]: e.target.value
+                        }
+                        }))
+
+                    }}
+                    />
+
+                </div>
+
+                ))}
+
+            </div>
+
+            )}
 
             {q.type === "multiselect" && (
             <div className="flex flex-col gap-2">
@@ -187,12 +266,13 @@ export default function OnboardingPage(){
 
       })}
 
-      <button
-        onClick={submitWave}
-        className="bg-blue-600 text-white p-2 rounded"
-      >
-        Submit
-      </button>
+    <button
+    onClick={submitWave}
+    disabled={!companyId}
+    className="bg-blue-600 text-white p-2 rounded disabled:opacity-50"
+    >
+    Submit
+    </button>
 
     </div>
 

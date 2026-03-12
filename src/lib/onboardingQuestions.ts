@@ -126,7 +126,8 @@ export const QUESTIONS: Record<string, any> = {
   q18: {
     question: "Marketing channels",
     type: "multiselect",
-    options: ["Television", "Radio", "Print", "Meta - Facebook", "Meta - Instagram", "Google Ads", "Bing", "Yahoo", "Affiliate Networks", "SMS", "Google Display Network", "Display (another company", "LinkedIn", "Influencers", "TikTok", "Youtube", "Forums (quora, reddit"]
+    options: ["Television", "Radio", "Print", "Meta - Facebook", "Meta - Instagram", "Google Ads", "Bing", "Yahoo", "Affiliate Networks", "SMS", "Google Display Network", "Display (another company", "LinkedIn", "Influencers", "TikTok", "Youtube", "Forums (quora, reddit"],
+    next: ["q31"]
   },
 
   q19: {
@@ -218,6 +219,9 @@ export const QUESTIONS: Record<string, any> = {
   q30: {
     question: "What percentage of your marketing spend drives to what goal? Enter percentage for Awareness, Product Revenue through sale or subscription, Trials, Leads",
     type: "text"
-  }
-
+  },
+    q31: {
+    question: "Upload campaign tracking samples for each engine",
+    type: "channel_examples"
+    }
 };
