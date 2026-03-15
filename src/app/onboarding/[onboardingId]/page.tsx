@@ -123,6 +123,17 @@ async function submitWave() {
 
             await generateParsers()
 
+            await fetch("/api/send-onboarding-email", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                companyId,
+                answers
+            })
+            })
+
             console.log("ONBOARDING COMPLETE")
 
             alert("Onboarding complete!")
