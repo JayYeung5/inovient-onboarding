@@ -1,44 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { INITIAL_WAVE, QUESTIONS } from "@/lib/onboardingQuestions";
 import { getNextWave } from "@/lib/nextWave";
-import { useRouter } from "next/navigation"
-import { collection, addDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
-import { useSearchParams } from "next/navigation"
-import { useParams } from "next/navigation"
-import { doc, getDoc } from "firebase/firestore"
-import { useEffect } from "react"
+import { useRouter, useParams } from "next/navigation";
+import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
+export default function OnboardingPage() {
 
-export default function OnboardingPage(){
-    
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [companyId, setCompanyId] = useState<string | null>(null)
-  const params = useParams()
-  const onboardingId = params.onboardingId as string
-    useEffect(() => {
+  const router = useRouter();
+  const params = useParams();
+  const onboardingId = params.onboardingId as string;
+
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [currentWave, setCurrentWave] = useState(INITIAL_WAVE);
+  const [answers, setAnswers] = useState<Record<string, any>>({});
+
+  useEffect(() => {
 
     async function loadOnboarding() {
+      const ref = doc(db, "onboardings", onboardingId);
+      const snap = await getDoc(ref);
 
-        const ref = doc(db, "onboardings", onboardingId)
-
-        const snap = await getDoc(ref)
-
-        if (snap.exists()) {
-        setCompanyId(snap.data().companyId)
-        }
-
+      if (snap.exists()) {
+        setCompanyId(snap.data().companyId);
+      }
     }
 
-    loadOnboarding()
+    loadOnboarding();
 
-    }, [onboardingId])
-  const [currentWave, setCurrentWave] = useState(INITIAL_WAVE);
-  const [answers, setAnswers] = useState<Record<string, any>>({})
-  
+  }, [onboardingId]);
 
   function updateAnswer(id: string, value: any) {
     setAnswers((prev) => ({
@@ -47,245 +39,278 @@ export default function OnboardingPage(){
     }));
   }
 
-    async function saveAnswers() {
-    if (!companyId) {
-        console.error("Company ID not loaded yet")
-        return
-    }
-    const entries = Object.entries(answers)
+  async function saveAnswers() {
+
+    if (!companyId) return;
+
+    const entries = Object.entries(answers);
 
     for (const [questionId, answer] of entries) {
 
-        await addDoc(collection(db, "responses"), {
+      await addDoc(collection(db, "responses"), {
         companyId,
         onboardingId,
         questionId,
         answer
-        })
+      });
 
     }
 
-}
-async function generateParsers() {
+  }
 
-  const examples = answers.q31
-  if (!examples) return
+  async function generateParsers() {
 
-  const res = await fetch("/api/generate-parser", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      examples
-    })
-  })
+    const examples = answers.q31;
+    if (!examples) return;
 
-  const data = await res.json()
-
-  console.log("PARSER GENERATED:", data)
-
-  const parsers = data.parsers
-
-  for (const channel in parsers) {
-
-    const parser = parsers[channel]
-
-    await fetch("/api/store-parser", {
+    const res = await fetch("/api/generate-parser", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        companyId,
-        channel,
-        structure: parser.structure,
-        luaScript: parser.lua
-      })
-    })
+      body: JSON.stringify({ examples })
+    });
+
+    const data = await res.json();
+    const parsers = data.parsers;
+
+    for (const channel in parsers) {
+
+      const parser = parsers[channel];
+
+      await fetch("/api/store-parser", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          companyId,
+          channel,
+          structure: parser.structure,
+          luaScript: parser.lua
+        })
+      });
+
+    }
 
   }
 
-}
+  async function submitWave() {
 
-async function submitWave() {
+    const next = getNextWave(answers);
+    const unanswered = next.filter((qid) => answers[qid] === undefined);
 
-        // determine next possible questions
-        const next = getNextWave(answers)
+    if (unanswered.length === 0) {
 
-        // remove questions already answered
-        const unanswered = next.filter((qid) => answers[qid] === undefined)
+      await saveAnswers();
+      await generateParsers();
 
-        // onboarding finished
-        if (unanswered.length === 0) {
+      await fetch("/api/send-onboarding-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          companyId,
+          answers
+        })
+      });
 
-            await saveAnswers()
+      alert("Onboarding complete!");
+      router.push("/companies");
+      return;
 
-            await generateParsers()
+    }
 
-            await fetch("/api/send-onboarding-email", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                companyId,
-                answers
-            })
-            })
+    setCurrentWave(unanswered);
 
-            console.log("ONBOARDING COMPLETE")
-
-            alert("Onboarding complete!")
-
-            router.push("/companies")
-
-            return
-        }
-
-        // move to next wave
-        setCurrentWave(unanswered)
-
-        }
+  }
 
   return (
 
-    <div className="max-w-xl mx-auto p-8 space-y-6">
+    <main className="min-h-screen bg-slate-50 flex justify-center">
 
-      {currentWave.map((qid) => {
+      <div className="w-full max-w-xl mt-16">
 
-        const q = QUESTIONS[qid];
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 space-y-8">
 
-        return (
-          <div key={qid}>
+          <h1 className="text-2xl text-slate-800">
+            Company Onboarding
+          </h1>
 
-            <p className="font-semibold">{q.question}</p>
+          {currentWave.map((qid) => {
 
-            {q.type === "text" && (
-            <input
-                className="border p-2 w-full"
-                onChange={(e) => updateAnswer(qid, e.target.value)}
-            />
-            )}
+            const q = QUESTIONS[qid];
 
-            {q.type === "number" && (
-            <input
-                type="number"
-                className="border p-2 w-full"
-                onChange={(e) => updateAnswer(qid, Number(e.target.value))}
-            />
-            )}
+            return (
 
-            {q.type === "file" && (
-            <input
-                type="file"
-                className="border p-2 w-full"
-                onChange={(e) => updateAnswer(qid, e.target.files?.[0])}
-            />
-            )}
+              <div key={qid} className="space-y-3">
 
-            {q.type === "select" && (
-            <select
-                className="border p-2 w-full"
-                onChange={(e) => updateAnswer(qid, e.target.value)}
-            >
-                <option value="">Select</option>
-                {q.options?.map((o: string) => (
-                <option key={o}>{o}</option>
-                ))}
-            </select>
-            )}
-            {q.type === "channel_examples" && (
-
-            <div className="space-y-6">
-
-                {(answers.q18 || []).map((channel: string) => (
-
-                <div key={channel} className="space-y-2">
-
-                    <div className="font-semibold">
-                    {channel} campaign example
-                    </div>
-
-                    <input
-                    className="border p-2 w-full"
-                    placeholder="Paste campaign naming example"
-                    onChange={(e) => {
-
-                        setAnswers((prev:any) => ({
-                        ...prev,
-                        q31: {
-                            ...prev.q31,
-                            [channel]: e.target.value
-                        }
-                        }))
-
-                    }}
-                    />
-
+                <div className="text-slate-800">
+                  {q.question}
                 </div>
 
-                ))}
 
-            </div>
+                {/* TEXT */}
+                {q.type === "text" && (
+                  <input
+                    className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    onChange={(e) => updateAnswer(qid, e.target.value)}
+                  />
+                )}
 
-            )}
 
-            {q.type === "multiselect" && (
-            <div className="flex flex-col gap-2">
+                {/* NUMBER */}
+                {q.type === "number" && (
+                  <input
+                    type="number"
+                    className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    onChange={(e) => updateAnswer(qid, Number(e.target.value))}
+                  />
+                )}
 
-                {q.options?.map((o: string) => (
 
-                <label key={o} className="flex gap-2 items-center">
+                {/* FILE */}
+                {q.type === "file" && (
+                  <input
+                    type="file"
+                    className="w-full border border-slate-300 rounded-md p-2"
+                    onChange={(e) => updateAnswer(qid, e.target.files?.[0])}
+                  />
+                )}
 
-                    <input
-                    type="checkbox"
-                    onChange={(e) => {
 
-                        setAnswers((prev: any) => {
+                {/* SELECT */}
+                {q.type === "select" && (
+                  <select
+                    className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    onChange={(e) => updateAnswer(qid, e.target.value)}
+                  >
+                    <option value="">Select</option>
+                    {q.options?.map((o: string) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                )}
 
-                        const current = prev[qid] || []
 
-                        if (e.target.checked) {
-                            return {
-                            ...prev,
-                            [qid]: [...current, o]
-                            }
-                        }
+                {/* CHANNEL EXAMPLES */}
+                {q.type === "channel_examples" && (
 
-                        return {
-                            ...prev,
-                            [qid]: current.filter((x: string) => x !== o)
-                        }
+                  <div className="space-y-6">
 
-                        })
+                    {(answers.q18 || []).map((channel: string) => (
 
-                    }}
-                    />
+                      <div key={channel} className="space-y-2">
 
-                    {o}
+                        <div className="text-sm text-slate-600">
+                          {channel} campaign example
+                        </div>
 
-                </label>
+                        <input
+                          className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          placeholder="Paste campaign naming example"
+                          onChange={(e) => {
 
-                ))}
+                            setAnswers((prev: any) => ({
+                              ...prev,
+                              q31: {
+                                ...prev.q31,
+                                [channel]: e.target.value
+                              }
+                            }));
 
-            </div>
-            )}
+                          }}
+                        />
 
-          </div>
-        );
+                      </div>
 
-      })}
+                    ))}
 
-    <button
-    onClick={submitWave}
-    disabled={!companyId}
-    className="bg-blue-600 text-white p-2 rounded disabled:opacity-50"
-    >
-    Submit
-    </button>
+                  </div>
 
-    </div>
+                )}
+
+
+                {/* MULTISELECT */}
+                {q.type === "multiselect" && (
+
+                  <div className="flex flex-col gap-2">
+
+                    {q.options?.map((o: string) => (
+
+                      <label
+                        key={o}
+                        className="flex items-center gap-2 text-sm text-slate-700"
+                      >
+
+                        <input
+                          type="checkbox"
+                          onChange={(e) => {
+
+                            setAnswers((prev: any) => {
+
+                              const current = prev[qid] || [];
+
+                              if (e.target.checked) {
+                                return {
+                                  ...prev,
+                                  [qid]: [...current, o]
+                                };
+                              }
+
+                              return {
+                                ...prev,
+                                [qid]: current.filter((x: string) => x !== o)
+                              };
+
+                            });
+
+                          }}
+                        />
+
+                        {o}
+
+                      </label>
+
+                    ))}
+
+                  </div>
+
+                )}
+
+              </div>
+
+            );
+
+          })}
+
+
+          {/* SUBMIT BUTTON */}
+          <button
+            onClick={submitWave}
+            disabled={!companyId}
+            className="
+            w-full
+            bg-slate-900
+            hover:bg-slate-800
+            text-white
+            rounded-lg
+            py-2.5
+            transition
+            disabled:opacity-50
+            disabled:cursor-not-allowed
+            "
+          >
+            Submit
+          </button>
+
+        </div>
+
+      </div>
+
+    </main>
 
   );
+
 }

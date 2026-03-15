@@ -17,29 +17,29 @@ export const INITIAL_WAVE = [
 
 export const QUESTIONS: Record<string, any> = {
 
-  q1: { question: "Company Name", type: "text" },
+  q1: { question: "What is the Company Name?", type: "text" },
 
   q2: { question: "Upload Logo", type: "file" },
 
   q3: {
-    question: "Company type",
+    question: "What is the Company type?",
     type: "select",
     options: ["B2B","B2C","DTC"]
   },
 
   q4: {
-    question: "Years in business",
+    question: "How many years in business?",
     type: "number"
   },
 
   q5: {
-    question: "Industry",
+    question: "Select the Industry",
     type: "select",
     options: ["SaaS","Apparel","Footwear","Beverage","Automotive"]
   },
 
   q6: {
-    question: "Need Morpheus UI in multiple languages?",
+    question: "Does it need Morpheus UI in multiple languages?",
     type: "select",
     options: ["Yes","No"],
 
@@ -55,12 +55,12 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q8: {
-    question: "How many Morpheus users?",
+    question: "How many potential Morpheus users will there be?",
     type: "number"
   },
 
   q9: {
-    question: "Teams using UI",
+    question: "How many different teams will be accessing the UI?",
     type: "multiselect",
     options: [
         "Marketing",
@@ -72,22 +72,22 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q10: {
-    question: "Countries sold in",
+    question: "Upload or select all the countries the company sells the product in",
     type: "text"
   },
 
   q11: {
-    question: "Upload product categories",
+    question: "Upload a list of company product categories",
     type: "file"
   },
 
   q12: {
-    question: "Upload products",
+    question: "Upload a list of products for the company",
     type: "file"
   },
 
   q13: {
-    question: "Multiple currencies?",
+    question: "Does the company sell in multiple currencies?",
     type: "select",
     options: ["Yes","No"],
 
@@ -98,17 +98,17 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q14: {
-    question: "Marketing currency",
+    question: "What currency are represented in the digital platforms they spend marketing budget on?",
     type: "text"
   },
 
   q15: {
-    question: "Financial reporting currency",
+    question: "What currency is the financial reporting in?",
     type: "text"
   },
 
   q16: {
-    question: "Retail presence?",
+    question: "Does the company have a retail presence (brick and mortar)?",
     type: "select",
     options: ["Yes","No"],
 
@@ -119,19 +119,19 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q17: {
-    question: "POS reporting system",
+    question: "What reporting systems does the client use for point of sale (POS) data?  ",
     type: "text"
   },
 
   q18: {
-    question: "Marketing channels",
+    question: "Which platforms does the company spend marketing budget on?",
     type: "multiselect",
     options: ["Television", "Radio", "Print", "Meta - Facebook", "Meta - Instagram", "Google Ads", "Bing", "Yahoo", "Affiliate Networks", "SMS", "Google Display Network", "Display (another company", "LinkedIn", "Influencers", "TikTok", "Youtube", "Forums (quora, reddit"],
     next: ["q31"]
   },
 
   q19: {
-    question: "Marketing email campaigns?",
+    question: "Does the company have email campaigns that are marketing (not transactional) based? (nurture campaigns, etc) ",
     type: "select",
     options: ["Yes","No"],
 
@@ -142,19 +142,19 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q20: {
-    question: "Email provider",
+    question: "What email provider does the company use?",
     type: "select",
     options: ["Klaviyo","Responsys","Sendgrid","Mailchimp", "Eloqua"]
   },
 
   q21: {
-    question: "Organic channels",
+    question: "What are the list of organic channels that the client uses for marketing? ",
     type: "multiselect",
     options: ["SEO","Organic Social","YouTube","Quora", "Reddit"]
   },
 
   q22: {
-    question: "Use attribution?",
+    question: "Does the client leverage anyattribution?",
     type: "select",
     options: ["Yes","No"],
 
@@ -164,7 +164,7 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q23: {
-    question: "Attribution type",
+    question: "What attribution type does the company use?",
     type: "select",
     options: ["Last Touch","First Touch","Multi-touch"],
 
@@ -176,7 +176,7 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q24: {
-    question: "Built in house?",
+    question: "Is this Last/First touch system built in house or done by a system?",
     type: "select",
     options: ["Yes","No"],
 
@@ -187,12 +187,12 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q25: {
-    question: "Attribution provider",
+    question: "For your attribution system, do you use Google Analytics or another provider for this?",
     type: "text"
   },
 
   q26: {
-    question: "Multi-touch built in house?",
+    question: "For your multi-touch attribution system is it built inhouse or do you use a third party company?",
     type: "select",
     options: ["Yes","No"],
 
@@ -202,17 +202,17 @@ export const QUESTIONS: Record<string, any> = {
     }
   },
   q27: {
-    question: "What central reporting system do you use?",
+    question: "If you use multi-touch attribution system that is built in-house, what central reporting system do you use to display / report out on performance?",
     type: "text"
   },
   q28: {
-    question: "Where is performance reported?",
+    question: "If you use a third-party company or built your attribution in-house, what program is the performance reported out through?",
     type: "select",
     options: ["Third Party Company Dashboard", "Internal Google Analytics", "Internal Dashboard"]
   },
 
   q29: {
-    question: "3 competitors",
+    question: "Who are your 3 direct competitors?",
     type: "text"
   },
 

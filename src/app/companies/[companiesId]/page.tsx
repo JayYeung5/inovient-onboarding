@@ -4,22 +4,21 @@ import { useEffect, useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams } from "next/navigation";
+import { QUESTIONS } from "@/lib/onboardingQuestions";
 
 export default function CompanyPage() {
 
-  const params = useParams()
-  const companyId = params?.companiesId as string
+  const params = useParams();
+  const companyId = params?.companiesId as string;
 
-  const [responses, setResponses] = useState<any[]>([])
-  const [parsers, setParsers] = useState<any[]>([])
+  const [responses, setResponses] = useState<any[]>([]);
+  const [parsers, setParsers] = useState<any[]>([]);
 
   useEffect(() => {
 
-    if (!companyId) return
+    if (!companyId) return;
 
     async function loadData() {
-
-      console.log("Loading company data for:", companyId)
 
       try {
 
@@ -27,118 +26,172 @@ export default function CompanyPage() {
         const responsesQuery = query(
           collection(db, "responses"),
           where("companyId", "==", companyId)
-        )
+        );
 
-        const responsesSnap = await getDocs(responsesQuery)
+        const responsesSnap = await getDocs(responsesQuery);
 
-        const responsesData = responsesSnap.docs.map((d) => ({
+        let responsesData = responsesSnap.docs.map((d) => ({
           id: d.id,
           ...d.data()
-        }))
+        }));
 
-        console.log("Responses:", responsesData)
+        // FIX SORTING (q1, q2, q3 ...)
+        responsesData.sort((a: any, b: any) => {
+          const getNum = (qid: string) => Number(qid.replace("q", ""));
+          return getNum(a.questionId) - getNum(b.questionId);
+        });
 
-        setResponses(responsesData)
+        setResponses(responsesData);
 
 
         // PARSERS
         const parsersQuery = query(
           collection(db, "parsers"),
           where("companyId", "==", companyId)
-        )
+        );
 
-        const parsersSnap = await getDocs(parsersQuery)
+        const parsersSnap = await getDocs(parsersQuery);
 
         const parsersData = parsersSnap.docs.map((d) => ({
           id: d.id,
           ...d.data()
-        }))
+        }));
 
-        console.log("Parsers:", parsersData)
-
-        setParsers(parsersData)
+        setParsers(parsersData);
 
       } catch (err) {
-        console.error("Error loading company data:", err)
+        console.error("Error loading company data:", err);
       }
 
     }
 
-    loadData()
+    loadData();
 
-  }, [companyId])
+  }, [companyId]);
 
 
   return (
-    <div className="p-10 max-w-3xl mx-auto">
+    <main className="min-h-screen bg-slate-50 flex justify-center">
 
-      {/* RESPONSES */}
-      <h1 className="text-2xl font-bold mb-6">
-        Company Answers
-      </h1>
+      <div className="w-full max-w-3xl mt-16 space-y-8">
 
-      <div className="space-y-4 mb-10">
+        {/* ANSWERS */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
 
-        {responses.length === 0 && (
-          <div className="text-gray-500">
-            No responses found.
-          </div>
-        )}
+          <h1 className="text-2xl text-slate-800 mb-6">
+            Company Answers
+          </h1>
 
-        {responses.map((r) => (
-
-          <div key={r.id} className="border p-3 rounded">
-
-            <div className="font-semibold">
-              {r.questionId}
+          {responses.length === 0 && (
+            <div className="text-slate-500 text-sm">
+              No responses found.
             </div>
+          )}
 
-            <div className="text-gray-700">
-              {JSON.stringify(r.answer)}
-            </div>
+          <div className="space-y-4">
+
+            {responses.map((r) => {
+
+              const questionText =
+                QUESTIONS[r.questionId]?.question || r.questionId;
+
+              return (
+
+                <div
+                  key={r.id}
+                  className="border border-slate-200 rounded-lg p-4"
+                >
+
+                  {/* QUESTION HEADER */}
+                  <div className="flex items-center gap-3 text-slate-800 mb-2">
+
+                    <span>
+                      {r.questionId}
+                    </span>
+
+                    <span>
+                      {questionText}
+                    </span>
+
+                  </div>
+
+                  {/* ANSWER */}
+                  <div className="text-slate-600 text-sm">
+
+                    {Array.isArray(r.answer) && (
+                      r.answer.join(", ")
+                    )}
+
+                    {!Array.isArray(r.answer) && typeof r.answer === "object" && (
+                      <div className="space-y-1">
+                        {Object.entries(r.answer).map(([key, value]) => (
+                          <div key={key}>
+                            <span className="text-slate-500">{key}:</span> {value as string}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {typeof r.answer === "string" && (
+                      r.answer
+                    )}
+
+                  </div>
+
+                </div>
+
+              );
+            })}
 
           </div>
 
-        ))}
+        </div>
+
+
+        {/* PARSERS */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
+
+          <h2 className="text-2xl text-slate-800 mb-6">
+            Campaign Parsers
+          </h2>
+
+          {parsers.length === 0 && (
+            <div className="text-slate-500 text-sm">
+              No campaign parsers generated.
+            </div>
+          )}
+
+          <div className="space-y-6">
+
+            {parsers.map((p) => (
+
+              <div
+                key={p.id}
+                className="border border-slate-200 rounded-lg p-5"
+              >
+
+                <div className="text-lg text-slate-800 mb-1">
+                  {p.channel}
+                </div>
+
+                <div className="text-sm text-slate-500 mb-4">
+                  {p.structure}
+                </div>
+
+                <pre className="bg-slate-100 text-xs p-4 rounded overflow-x-auto">
+                  {p.luaScript}
+                </pre>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
 
       </div>
 
-
-      {/* PARSERS */}
-      <h2 className="text-2xl font-bold mb-6">
-        Campaign Parsers
-      </h2>
-
-      <div className="space-y-6">
-
-        {parsers.length === 0 && (
-          <div className="text-gray-500">
-            No campaign parsers generated.
-          </div>
-        )}
-
-        {parsers.map((p) => (
-
-          <div key={p.id} className="border p-4 rounded">
-
-            <div className="font-bold mb-2 text-lg">
-              {p.channel}
-            </div>
-
-            <div className="text-sm text-gray-500 mb-3">
-              {p.structure}
-            </div>
-
-            <pre className="bg-gray-100 p-3 text-xs overflow-x-auto rounded">
-              {p.luaScript}
-            </pre>
-
-          </div>
-
-        ))}
-
-      </div>
-
-    </div>
-  )
+    </main>
+  );
 }

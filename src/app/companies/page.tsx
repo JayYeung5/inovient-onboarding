@@ -3,47 +3,23 @@
 import { useEffect, useState } from "react";
 import {
   collection,
-  addDoc,
   query,
   where,
   getDocs,
-  serverTimestamp,
   doc,
-  getDoc,
-  updateDoc,
-  arrayUnion
+  getDoc
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
 
 export default function CompaniesPage() {
   const { user } = useAuth();
   const router = useRouter();
 
   const [companies, setCompanies] = useState<any[]>([]);
-  const [name, setName] = useState("");
   const [ready, setReady] = useState(false);
-
-  async function createCompany() {
-    if (!user) return;
-
-    const companyRef = await addDoc(collection(db, "companies"), {
-      name,
-      createdBy: user.uid,
-      members: [user.uid],
-      createdAt: serverTimestamp(),
-    });
-    const userRef = doc(db, "users", user.uid);
-
-    await updateDoc(userRef, {
-    companyIds: arrayUnion(companyRef.id),
-    });
-
-    setName("");
-    loadCompanies(user.uid);
-  }
 
   async function loadCompanies(uid: string) {
     const userDoc = await getDoc(doc(db, "users", uid));
@@ -78,42 +54,64 @@ export default function CompaniesPage() {
   }, [user]);
 
   if (!ready) {
-    return <div className="p-10">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        Loading companies...
+      </div>
+    );
   }
 
   return (
-    <div className="p-10 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">
-        Companies
-      </h1>
+    <main className="min-h-screen bg-slate-50 flex justify-center">
 
-      <div className="flex gap-2 mb-6">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Company name"
-          className="border p-2 flex-1"
-        />
+      <div className="w-full max-w-2xl mt-16">
 
-        <button
-          onClick={createCompany}
-          className="bg-black text-white px-4 py-2"
-        >
-          Create
-        </button>
-      </div>
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
 
-      <div className="space-y-2">
-        {companies.map((c) => (
-          <div
-            key={c.id}
-            onClick={() => router.push(`/companies/${c.id}`)}
-            className="border p-3 rounded cursor-pointer hover:bg-gray-100"
-          >
-            {c.name}
+          <div className="mb-6">
+            <h1 className="text-2xl text-slate-800">
+              Companies
+            </h1>
+
+            <p className="text-sm text-slate-500 mt-1">
+              Select a company to view its onboarding profile
+            </p>
           </div>
-        ))}
+
+          <div className="space-y-3">
+
+            {companies.length === 0 && (
+              <div className="text-slate-500 text-sm">
+                No companies yet.
+              </div>
+            )}
+
+            {companies.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => router.push(`/companies/${c.id}`)}
+                className="
+                  border border-slate-200
+                  rounded-lg
+                  px-4 py-3
+                  cursor-pointer
+                  transition
+                  hover:bg-slate-50
+                  hover:border-slate-300
+                "
+              >
+                <div className="text-slate-800">
+                  {c.name}
+                </div>
+              </div>
+            ))}
+
+          </div>
+
+        </div>
+
       </div>
-    </div>
+
+    </main>
   );
 }
