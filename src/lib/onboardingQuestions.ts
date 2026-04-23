@@ -73,7 +73,7 @@ export const QUESTIONS: Record<string, any> = {
 
   q10: {
     question: "Upload or select all the countries the company sells the product in",
-    type: "text"
+    type: "file"
   },
 
   q11: {
@@ -154,7 +154,7 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q22: {
-    question: "Does the client leverage anyattribution?",
+    question: "Does the client leverage any attribution?",
     type: "select",
     options: ["Yes","No"],
 
@@ -217,7 +217,7 @@ export const QUESTIONS: Record<string, any> = {
   },
 
   q30: {
-    question: "What percentage of your marketing spend drives to what goal? Enter percentage for Awareness, Product Revenue through sale or subscription, Trials, Leads",
+    question: "What percentage of your marketing spend drives to what goal? Enter percentage for awareness, product revenue through sale or subscription, trials, leads",
     type: "text"
   },
     q31: {

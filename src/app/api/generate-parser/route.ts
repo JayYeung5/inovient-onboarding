@@ -31,13 +31,16 @@ Field1 - Field2 - Field3 - Field4 - ...
 
 Example output:
 Platform - Geography Targeted - Offering/Asset - Product - Ad Type - Campaign Objective
+
+Choose between the most common fields used in campaign naming conventions:
+Platform - Geography Targeted - Offering/Asset - Product - Type of Ad - Campaign Objective - Keyword Group - Product Date - Region - Type of Campaign - Agency Code - Free Field Campaign Name - Free Field Initials - Fiscal Year - Fiscal Quarter - Fiscal Year & Quarter - Country - Agency Code - Goal - Free Field
 `
+
 
     const result = await model.generateContent(prompt)
 
     const structure = result.response.text().trim()
 
-    // convert structure into Lua field names
     const fields = structure
       .split(" - ")
       .map((f: string) =>

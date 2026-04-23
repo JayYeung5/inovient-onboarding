@@ -25,7 +25,7 @@ export default function Navbar() {
       z-50
       "
     >
-      {/* LEFT LOGO */}
+      {}
       <Link
         href="/"
         className={`${playfair.className} text-xl text-gray-900 hover:opacity-80 transition`}
@@ -33,7 +33,7 @@ export default function Navbar() {
         Inovient
       </Link>
 
-      {/* CENTER NAV */}
+      {}
       <div className="absolute left-1/2 -translate-x-1/2 flex gap-10">
 
         <Link
@@ -74,7 +74,7 @@ export default function Navbar() {
 
       </div>
 
-      {/* RIGHT SIDE */}
+      {}
       <AuthButton />
     </nav>
   );

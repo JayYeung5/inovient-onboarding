@@ -7,7 +7,6 @@ export async function POST(req: Request) {
 
   const { companyId, answers } = await req.json()
 
-  // format answers nicely
   const formatted = Object.entries(answers).map(([qid, answer]) => {
 
     const questionText = QUESTIONS[qid]?.question || qid
@@ -45,8 +44,8 @@ export async function POST(req: Request) {
 
 
   await resend.emails.send({
-    from: "onboarding@resend.dev",   // use this while testing
-    to: ["jayyeungkh@gmail.com"],          // change this
+    from: "onboarding@resend.dev", 
+    to: ["jayyeungkh@gmail.com"], 
     subject: "New Company Onboarding Completed",
     html
   })

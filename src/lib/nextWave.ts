@@ -10,12 +10,10 @@ export function getNextWave(answers: Record<string, any>) {
 
     if (!q || !q.next) return;
 
-    // Case 1: next is an array
     if (Array.isArray(q.next)) {
       q.next.forEach((n: string) => nextQuestions.add(n));
     }
 
-    // Case 2: next depends on answer
     else if (typeof q.next === "object") {
       const branch = q.next[String(answer)];
       branch?.forEach((n: string) => nextQuestions.add(n));

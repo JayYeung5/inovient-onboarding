@@ -27,7 +27,6 @@ export default function HomePage() {
     try {
       setLoading(true);
 
-      // Create company
       const companyRef = await addDoc(collection(db, "companies"), {
         name: companyName,
         createdBy: user.uid,
@@ -37,14 +36,12 @@ export default function HomePage() {
 
       const companyId = companyRef.id;
 
-      // Update user document
       const userRef = doc(db, "users", user.uid);
 
       await updateDoc(userRef, {
         companyIds: arrayUnion(companyId)
       });
 
-      // Create onboarding session
       const onboardingRef = await addDoc(collection(db, "onboardings"), {
         companyId,
         createdBy: user.uid,

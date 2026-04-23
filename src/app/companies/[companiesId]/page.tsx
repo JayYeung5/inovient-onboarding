@@ -5,6 +5,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useParams } from "next/navigation";
 import { QUESTIONS } from "@/lib/onboardingQuestions";
+import { getSignedFileUrl } from "@/lib/getSignedFileUrl";
 
 export default function CompanyPage() {
 
@@ -22,7 +23,6 @@ export default function CompanyPage() {
 
       try {
 
-        // RESPONSES
         const responsesQuery = query(
           collection(db, "responses"),
           where("companyId", "==", companyId)
@@ -35,7 +35,6 @@ export default function CompanyPage() {
           ...d.data()
         }));
 
-        // FIX SORTING (q1, q2, q3 ...)
         responsesData.sort((a: any, b: any) => {
           const getNum = (qid: string) => Number(qid.replace("q", ""));
           return getNum(a.questionId) - getNum(b.questionId);
@@ -44,7 +43,6 @@ export default function CompanyPage() {
         setResponses(responsesData);
 
 
-        // PARSERS
         const parsersQuery = query(
           collection(db, "parsers"),
           where("companyId", "==", companyId)
@@ -69,13 +67,20 @@ export default function CompanyPage() {
 
   }, [companyId]);
 
-
+  async function handleViewFile(answer: any) {
+    try {
+      const signedUrl = await getSignedFileUrl(answer.bucket, answer.path);
+      window.open(signedUrl, "_blank");
+    } catch (err) {
+      console.error("Error opening file:", err);
+      alert(err instanceof Error ? err.message : "Could not open file");
+    }
+  }
   return (
     <main className="min-h-screen bg-slate-50 flex justify-center">
 
       <div className="w-full max-w-3xl mt-16 space-y-8">
 
-        {/* ANSWERS */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
 
           <h1 className="text-2xl text-slate-800 mb-6">
@@ -115,28 +120,54 @@ export default function CompanyPage() {
 
                   </div>
 
-                  {/* ANSWER */}
                   <div className="text-slate-600 text-sm">
+                  {Array.isArray(r.answer) && r.answer.join(", ")}
 
-                    {Array.isArray(r.answer) && (
-                      r.answer.join(", ")
+                  {!Array.isArray(r.answer) &&
+                    typeof r.answer === "object" &&
+                    r.answer?.type === "file" && (
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-slate-500">File:</span>{" "}
+                          {r.answer.originalName}
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500">Type:</span>{" "}
+                          {r.answer.mimeType}
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500">Size:</span>{" "}
+                          {r.answer.size} bytes
+                        </div>
+
+                        <button
+                          onClick={() => handleViewFile(r.answer)}
+                          className="text-blue-600 underline"
+                        >
+                          View file
+                        </button>
+                      </div>
                     )}
 
-                    {!Array.isArray(r.answer) && typeof r.answer === "object" && (
+                  {!Array.isArray(r.answer) &&
+                    typeof r.answer === "object" &&
+                    r.answer?.type !== "file" && (
                       <div className="space-y-1">
                         {Object.entries(r.answer).map(([key, value]) => (
                           <div key={key}>
-                            <span className="text-slate-500">{key}:</span> {value as string}
+                            <span className="text-slate-500">{key}:</span>{" "}
+                            {String(value)}
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {typeof r.answer === "string" && (
-                      r.answer
-                    )}
+                  {typeof r.answer === "string" && r.answer}
 
-                  </div>
+                  {typeof r.answer === "number" && String(r.answer)}
+                </div>
 
                 </div>
 
@@ -148,7 +179,6 @@ export default function CompanyPage() {
         </div>
 
 
-        {/* PARSERS */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
 
           <h2 className="text-2xl text-slate-800 mb-6">

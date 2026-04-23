@@ -151,7 +151,6 @@ export default function OnboardingPage() {
                 </div>
 
 
-                {/* TEXT */}
                 {q.type === "text" && (
                   <input
                     className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -160,7 +159,6 @@ export default function OnboardingPage() {
                 )}
 
 
-                {/* NUMBER */}
                 {q.type === "number" && (
                   <input
                     type="number"
@@ -170,17 +168,42 @@ export default function OnboardingPage() {
                 )}
 
 
-                {/* FILE */}
                 {q.type === "file" && (
-                  <input
+                <div className="space-y-2">
+                    <input
                     type="file"
                     className="w-full border border-slate-300 rounded-md p-2"
-                    onChange={(e) => updateAnswer(qid, e.target.files?.[0])}
-                  />
+                    onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !companyId) return;
+
+                        try {
+                        const { uploadFileClient } = await import("@/lib/uploadFileClient");
+
+                        const fileMeta = await uploadFileClient({
+                            file,
+                            companyId,
+                            onboardingId,
+                            fieldKey: qid,
+                        });
+
+                        updateAnswer(qid, fileMeta);
+                        } catch (err) {
+                        console.error(err);
+                        alert(err instanceof Error ? err.message : "File upload failed");
+                        }
+                    }}
+                    />
+
+                    {answers[qid]?.type === "file" && (
+                    <div className="text-sm text-green-700">
+                        Uploaded: {answers[qid].originalName}
+                    </div>
+                    )}
+                </div>
                 )}
 
 
-                {/* SELECT */}
                 {q.type === "select" && (
                   <select
                     className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -194,7 +217,6 @@ export default function OnboardingPage() {
                 )}
 
 
-                {/* CHANNEL EXAMPLES */}
                 {q.type === "channel_examples" && (
 
                   <div className="space-y-6">
@@ -232,7 +254,7 @@ export default function OnboardingPage() {
                 )}
 
 
-                {/* MULTISELECT */}
+                {}
                 {q.type === "multiselect" && (
 
                   <div className="flex flex-col gap-2">
@@ -286,7 +308,7 @@ export default function OnboardingPage() {
           })}
 
 
-          {/* SUBMIT BUTTON */}
+          {}
           <button
             onClick={submitWave}
             disabled={!companyId}
