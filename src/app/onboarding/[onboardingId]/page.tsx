@@ -58,42 +58,41 @@ export default function OnboardingPage() {
 
   }
 
-  async function generateParsers() {
+async function generateParsers() {
+  const rawMetadataFields = answers.q32 || [];
 
-    const examples = answers.q31;
-    if (!examples) return;
+  if (rawMetadataFields.length === 0) return;
 
-    const res = await fetch("/api/generate-parser", {
+  const res = await fetch("/api/generate-parser", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      rawMetadataFields
+    })
+  });
+
+  const data = await res.json();
+  const parsers = data.parsers;
+
+  for (const channel in parsers) {
+    const parser = parsers[channel];
+
+    await fetch("/api/store-parser", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ examples })
+      body: JSON.stringify({
+        companyId,
+        channel,
+        structure: parser.structure,
+        luaScript: parser.lua
+      })
     });
-
-    const data = await res.json();
-    const parsers = data.parsers;
-
-    for (const channel in parsers) {
-
-      const parser = parsers[channel];
-
-      await fetch("/api/store-parser", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          companyId,
-          channel,
-          structure: parser.structure,
-          luaScript: parser.lua
-        })
-      });
-
-    }
-
   }
+}
 
   async function submitWave() {
 
@@ -202,8 +201,88 @@ export default function OnboardingPage() {
                     )}
                 </div>
                 )}
+                {q.type === "metadata_fields" && (
+                    <div className="space-y-4">
+                        {((answers[qid] as any[]) || []).map((field, index) => (
+                        <div
+                            key={index}
+                            className="border border-slate-200 rounded-lg p-4 space-y-3"
+                        >
+                            <input
+                            className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            placeholder="Field name (e.g. Product, Country, Audience)"
+                            value={field.fieldName || ""}
+                            onChange={(e) => {
+                                setAnswers((prev: any) => {
+                                const current = [...(prev[qid] || [])];
+                                current[index] = {
+                                    ...current[index],
+                                    fieldName: e.target.value
+                                };
+                                return {
+                                    ...prev,
+                                    [qid]: current
+                                };
+                                });
+                            }}
+                            />
 
+                            <textarea
+                            className="w-full border border-slate-300 rounded-md p-2 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            placeholder="Enter one value per line, e.g.&#10;AutoCAD&#10;Revit&#10;Fusion 360"
+                            value={field.valuesText || ""}
+                            onChange={(e) => {
+                                setAnswers((prev: any) => {
+                                const current = [...(prev[qid] || [])];
+                                current[index] = {
+                                    ...current[index],
+                                    valuesText: e.target.value
+                                };
+                                return {
+                                    ...prev,
+                                    [qid]: current
+                                };
+                                });
+                            }}
+                            />
 
+                            <button
+                            type="button"
+                            className="text-red-600 text-sm underline"
+                            onClick={() => {
+                                setAnswers((prev: any) => {
+                                const current = [...(prev[qid] || [])];
+                                current.splice(index, 1);
+                                return {
+                                    ...prev,
+                                    [qid]: current
+                                };
+                                });
+                            }}
+                            >
+                            Remove field
+                            </button>
+                        </div>
+                        ))}
+
+                        <button
+                        type="button"
+                        className="rounded-md bg-slate-200 px-4 py-2 text-slate-800 hover:bg-slate-300"
+                        onClick={() => {
+                            setAnswers((prev: any) => ({
+                            ...prev,
+                            [qid]: [
+                                ...(prev[qid] || []),
+                                { fieldName: "", valuesText: "" }
+                            ]
+                            }));
+                        }}
+                        >
+                        Add metadata field
+                        </button>
+                    </div>
+                    )}
+                
                 {q.type === "select" && (
                   <select
                     className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"

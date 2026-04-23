@@ -76,6 +76,7 @@ export default function CompanyPage() {
       alert(err instanceof Error ? err.message : "Could not open file");
     }
   }
+
   return (
     <main className="min-h-screen bg-slate-50 flex justify-center">
 
@@ -121,53 +122,80 @@ export default function CompanyPage() {
                   </div>
 
                   <div className="text-slate-600 text-sm">
-                  {Array.isArray(r.answer) && r.answer.join(", ")}
+                    {r.questionId === "q32" && Array.isArray(r.answer) && (
+                      <div className="space-y-3">
+                        {r.answer.map((field: any, index: number) => (
+                          <div
+                            key={index}
+                            className="rounded-md border border-slate-200 p-3 bg-slate-50"
+                          >
+                            <div className="mb-1">
+                              <span className="text-slate-500">Field Name:</span>{" "}
+                              <span className="text-slate-800">
+                                {field.fieldName || "(empty)"}
+                              </span>
+                            </div>
 
-                  {!Array.isArray(r.answer) &&
-                    typeof r.answer === "object" &&
-                    r.answer?.type === "file" && (
-                      <div className="space-y-2">
-                        <div>
-                          <span className="text-slate-500">File:</span>{" "}
-                          {r.answer.originalName}
-                        </div>
-
-                        <div>
-                          <span className="text-slate-500">Type:</span>{" "}
-                          {r.answer.mimeType}
-                        </div>
-
-                        <div>
-                          <span className="text-slate-500">Size:</span>{" "}
-                          {r.answer.size} bytes
-                        </div>
-
-                        <button
-                          onClick={() => handleViewFile(r.answer)}
-                          className="text-blue-600 underline"
-                        >
-                          View file
-                        </button>
-                      </div>
-                    )}
-
-                  {!Array.isArray(r.answer) &&
-                    typeof r.answer === "object" &&
-                    r.answer?.type !== "file" && (
-                      <div className="space-y-1">
-                        {Object.entries(r.answer).map(([key, value]) => (
-                          <div key={key}>
-                            <span className="text-slate-500">{key}:</span>{" "}
-                            {String(value)}
+                            <div className="whitespace-pre-wrap">
+                              <span className="text-slate-500">Values:</span>{" "}
+                              <span className="text-slate-800">
+                                {field.valuesText || "(empty)"}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>
                     )}
 
-                  {typeof r.answer === "string" && r.answer}
+                    {r.questionId !== "q32" &&
+                      Array.isArray(r.answer) &&
+                      r.answer.join(", ")}
 
-                  {typeof r.answer === "number" && String(r.answer)}
-                </div>
+                    {!Array.isArray(r.answer) &&
+                      typeof r.answer === "object" &&
+                      r.answer?.type === "file" && (
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-slate-500">File:</span>{" "}
+                            {r.answer.originalName}
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500">Type:</span>{" "}
+                            {r.answer.mimeType}
+                          </div>
+
+                          <div>
+                            <span className="text-slate-500">Size:</span>{" "}
+                            {r.answer.size} bytes
+                          </div>
+
+                          <button
+                            onClick={() => handleViewFile(r.answer)}
+                            className="text-blue-600 underline"
+                          >
+                            View file
+                          </button>
+                        </div>
+                      )}
+
+                    {!Array.isArray(r.answer) &&
+                      typeof r.answer === "object" &&
+                      r.answer?.type !== "file" && (
+                        <div className="space-y-1">
+                          {Object.entries(r.answer).map(([key, value]) => (
+                            <div key={key}>
+                              <span className="text-slate-500">{key}:</span>{" "}
+                              {String(value)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    {typeof r.answer === "string" && r.answer}
+
+                    {typeof r.answer === "number" && String(r.answer)}
+                  </div>
 
                 </div>
 

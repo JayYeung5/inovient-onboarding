@@ -12,7 +12,8 @@ export const INITIAL_WAVE = [
   "q13",
   "q19",
   "q22",
-  "q30"
+  "q30",
+  "q32"
 ];
 
 export const QUESTIONS: Record<string, any> = {
@@ -223,5 +224,9 @@ export const QUESTIONS: Record<string, any> = {
     q31: {
     question: "Upload campaign tracking samples for each engine",
     type: "channel_examples"
+    },
+    q32: {
+    question: "Define the metadata fields that appear in your campaign names",
+    type: "metadata_fields"
     }
 };
