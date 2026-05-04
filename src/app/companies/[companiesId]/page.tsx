@@ -1,27 +1,60 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { useParams } from "next/navigation";
 import { QUESTIONS } from "@/lib/onboardingQuestions";
 import { getSignedFileUrl } from "@/lib/getSignedFileUrl";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function CompanyPage() {
-
   const params = useParams();
   const companyId = params?.companiesId as string;
 
   const [responses, setResponses] = useState<any[]>([]);
   const [parsers, setParsers] = useState<any[]>([]);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     if (!companyId) return;
 
-    async function loadData() {
+    const unsub = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
 
       try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        const role = userSnap.data()?.role;
+
+        const companyRef = doc(db, "companies", companyId);
+        const companySnap = await getDoc(companyRef);
+
+        if (!companySnap.exists()) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
+
+        const companyData = companySnap.data();
+
+        if (role !== "admin" && companyData.createdBy !== currentUser.uid) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
 
         const responsesQuery = query(
           collection(db, "responses"),
@@ -32,7 +65,7 @@ export default function CompanyPage() {
 
         let responsesData = responsesSnap.docs.map((d) => ({
           id: d.id,
-          ...d.data()
+          ...d.data(),
         }));
 
         responsesData.sort((a: any, b: any) => {
@@ -41,7 +74,6 @@ export default function CompanyPage() {
         });
 
         setResponses(responsesData);
-
 
         const parsersQuery = query(
           collection(db, "parsers"),
@@ -52,19 +84,20 @@ export default function CompanyPage() {
 
         const parsersData = parsersSnap.docs.map((d) => ({
           id: d.id,
-          ...d.data()
+          ...d.data(),
         }));
 
         setParsers(parsersData);
-
+        setAccessDenied(false);
+        setLoading(false);
       } catch (err) {
         console.error("Error loading company data:", err);
+        setAccessDenied(true);
+        setLoading(false);
       }
+    });
 
-    }
-
-    loadData();
-
+    return () => unsub();
   }, [companyId]);
 
   async function handleViewFile(answer: any) {
@@ -77,61 +110,69 @@ export default function CompanyPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center items-center">
+        <div className="text-slate-500 text-sm">Loading...</div>
+      </main>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center items-center">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-slate-700">
+          You do not have access to this company.
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50 flex justify-center">
-
-      <div className="w-full max-w-3xl mt-16 space-y-8">
-
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-
-          <h1 className="text-2xl text-slate-800 mb-6">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center">
+      <div className="w-full max-w-4xl mt-16 mb-16 space-y-8 px-4">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+          <h1 className="text-3xl font-semibold text-slate-900 mb-8 tracking-tight">
             Company Answers
           </h1>
 
           {responses.length === 0 && (
-            <div className="text-slate-500 text-sm">
-              No responses found.
-            </div>
+            <div className="text-slate-500 text-sm">No responses found.</div>
           )}
 
-          <div className="space-y-4">
-
+          <div className="space-y-5">
             {responses.map((r) => {
-
               const questionText =
                 QUESTIONS[r.questionId]?.question || r.questionId;
 
               return (
-
                 <div
                   key={r.id}
-                  className="border border-slate-200 rounded-lg p-4"
+                  className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition"
                 >
-
-                  {/* QUESTION HEADER */}
-                  <div className="flex items-center gap-3 text-slate-800 mb-2">
-
-                    <span>
-                      {r.questionId}
+                  <div className="flex items-start gap-3 mb-3">
+                    <span className="text-sm text-slate-400 font-medium pt-[2px] min-w-[24px]">
+                      {r.questionId.replace("q", "")}.
                     </span>
 
-                    <span>
+                    <span className="text-[17px] font-medium text-slate-900 leading-snug">
                       {questionText}
                     </span>
-
                   </div>
 
-                  <div className="text-slate-600 text-sm">
+                  <div className="text-slate-700 text-[15px] leading-7">
                     {r.questionId === "q32" && Array.isArray(r.answer) && (
                       <div className="space-y-3">
                         {r.answer.map((field: any, index: number) => (
                           <div
                             key={index}
-                            className="rounded-md border border-slate-200 p-3 bg-slate-50"
+                            className="rounded-lg border border-slate-200 p-4 bg-slate-50"
                           >
                             <div className="mb-1">
-                              <span className="text-slate-500">Field Name:</span>{" "}
-                              <span className="text-slate-800">
+                              <span className="text-slate-500">
+                                Field Name:
+                              </span>{" "}
+                              <span className="text-slate-900 font-medium">
                                 {field.fieldName || "(empty)"}
                               </span>
                             </div>
@@ -172,7 +213,7 @@ export default function CompanyPage() {
 
                           <button
                             onClick={() => handleViewFile(r.answer)}
-                            className="text-blue-600 underline"
+                            className="text-blue-600 underline font-medium"
                           >
                             View file
                           </button>
@@ -196,20 +237,14 @@ export default function CompanyPage() {
 
                     {typeof r.answer === "number" && String(r.answer)}
                   </div>
-
                 </div>
-
               );
             })}
-
           </div>
-
         </div>
 
-
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-
-          <h2 className="text-2xl text-slate-800 mb-6">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+          <h2 className="text-3xl font-semibold text-slate-900 mb-8 tracking-tight">
             Campaign Parsers
           </h2>
 
@@ -220,15 +255,12 @@ export default function CompanyPage() {
           )}
 
           <div className="space-y-6">
-
             {parsers.map((p) => (
-
               <div
                 key={p.id}
-                className="border border-slate-200 rounded-lg p-5"
+                className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm"
               >
-
-                <div className="text-lg text-slate-800 mb-1">
+                <div className="text-lg font-semibold text-slate-900 mb-1">
                   {p.channel}
                 </div>
 
@@ -236,20 +268,14 @@ export default function CompanyPage() {
                   {p.structure}
                 </div>
 
-                <pre className="bg-slate-100 text-xs p-4 rounded overflow-x-auto">
+                <pre className="bg-white border border-slate-200 text-slate-800 text-xs p-4 rounded-xl overflow-x-auto leading-6 whitespace-pre-wrap">
                   {p.luaScript}
                 </pre>
-
               </div>
-
             ))}
-
           </div>
-
         </div>
-
       </div>
-
     </main>
   );
 }

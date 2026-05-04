@@ -212,15 +212,15 @@ export const QUESTIONS: Record<string, any> = {
     options: ["Third Party Company Dashboard", "Internal Google Analytics", "Internal Dashboard"]
   },
 
-  q29: {
+    q29: {
     question: "Who are your 3 direct competitors?",
-    type: "text"
-  },
+    type: "competitors"
+    },
 
-  q30: {
-    question: "What percentage of your marketing spend drives to what goal? Enter percentage for awareness, product revenue through sale or subscription, trials, leads",
-    type: "text"
-  },
+    q30: {
+    question: "What percentage of your marketing spend drives to each goal?",
+    type: "marketing_goals"
+    },
     q31: {
     question: "Upload campaign tracking samples for each engine",
     type: "channel_examples"

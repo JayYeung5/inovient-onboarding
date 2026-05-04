@@ -165,40 +165,127 @@ async function generateParsers() {
                     onChange={(e) => updateAnswer(qid, Number(e.target.value))}
                   />
                 )}
-
-
                 {q.type === "file" && (
                 <div className="space-y-2">
+                    <label className="flex items-center justify-between gap-3 w-full border border-slate-300 rounded-md p-3 cursor-pointer hover:bg-slate-50 transition">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <span className="rounded-md bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 text-sm whitespace-nowrap">
+                        Choose file
+                        </span>
+
+                        <span className="text-sm text-slate-500 truncate">
+                        {answers[qid]?.originalName || "No file selected"}
+                        </span>
+                    </div>
+
                     <input
-                    type="file"
-                    className="w-full border border-slate-300 rounded-md p-2"
-                    onChange={async (e) => {
+                        type="file"
+                        className="hidden"
+                        onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file || !companyId) return;
 
                         try {
-                        const { uploadFileClient } = await import("@/lib/uploadFileClient");
+                            const { uploadFileClient } = await import("@/lib/uploadFileClient");
 
-                        const fileMeta = await uploadFileClient({
+                            const fileMeta = await uploadFileClient({
                             file,
                             companyId,
                             onboardingId,
                             fieldKey: qid,
-                        });
+                            });
 
-                        updateAnswer(qid, fileMeta);
+                            updateAnswer(qid, fileMeta);
                         } catch (err) {
-                        console.error(err);
-                        alert(err instanceof Error ? err.message : "File upload failed");
+                            console.error(err);
+                            alert(err instanceof Error ? err.message : "File upload failed");
                         }
-                    }}
+                        }}
                     />
+                    </label>
 
                     {answers[qid]?.type === "file" && (
                     <div className="text-sm text-green-700">
                         Uploaded: {answers[qid].originalName}
                     </div>
                     )}
+                </div>
+                )}
+                {q.type === "competitors" && (
+                <div className="space-y-3">
+                    {[0, 1, 2].map((index) => (
+                    <input
+                        key={index}
+                        className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        placeholder={`Competitor ${index + 1}`}
+                        value={answers[qid]?.[index]?.name || ""}
+                        onChange={(e) => {
+                        setAnswers((prev: any) => {
+                            const current = [...(prev[qid] || [])];
+
+                            current[index] = {
+                            ...current[index],
+                            name: e.target.value
+                            };
+
+                            return {
+                            ...prev,
+                            [qid]: current
+                            };
+                        });
+                        }}
+                    />
+                    ))}
+                </div>
+                )}
+                {q.type === "marketing_goals" && (
+                <div className="space-y-3">
+                    {["Awareness", "Revenue", "Trials", "Leads"].map((goal) => {
+                    const currentGoal = answers[qid]?.find((item: any) => item.goal === goal);
+
+                    return (
+                        <div key={goal} className="flex items-center gap-3">
+                        <div className="w-32 text-sm text-slate-700">
+                            {goal}
+                        </div>
+
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            placeholder="0"
+                            value={currentGoal?.percentage || ""}
+                            onChange={(e) => {
+                            setAnswers((prev: any) => {
+                                const current = [...(prev[qid] || [])];
+                                const existingIndex = current.findIndex(
+                                (item: any) => item.goal === goal
+                                );
+
+                                const updatedGoal = {
+                                goal,
+                                percentage: Number(e.target.value)
+                                };
+
+                                if (existingIndex >= 0) {
+                                current[existingIndex] = updatedGoal;
+                                } else {
+                                current.push(updatedGoal);
+                                }
+
+                                return {
+                                ...prev,
+                                [qid]: current
+                                };
+                            });
+                            }}
+                        />
+
+                        <span className="text-sm text-slate-500">%</span>
+                        </div>
+                    );
+                    })}
                 </div>
                 )}
                 {q.type === "metadata_fields" && (

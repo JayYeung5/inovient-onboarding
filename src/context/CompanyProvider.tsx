@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 type AuthContextType = {
   user: User | null;
@@ -14,6 +14,10 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const useAuth = () => useContext(AuthContext);
+
+const ADMIN_EMAILS = [
+  "jayyeung@ucsb.edu",
+];
 
 export default function AuthProvider({
   children,
@@ -28,17 +32,28 @@ export default function AuthProvider({
 
       if (!u) return;
 
+      const email = u.email?.toLowerCase() || "";
+      const isAdmin = ADMIN_EMAILS.includes(email);
+
       const ref = doc(db, "users", u.uid);
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
-        const allUsers = await getDocs(collection(db, "users"));
-
         await setDoc(ref, {
           email: u.email,
-          role: allUsers.empty ? "admin" : "user",
+          role: isAdmin ? "admin" : "user",
           createdAt: new Date(),
         });
+      } else {
+        await setDoc(
+          ref,
+          {
+            email: u.email,
+            role: isAdmin ? "admin" : "user",
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
       }
     });
 
