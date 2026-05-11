@@ -322,6 +322,8 @@ ${taxonomyText}
 
 Requirements:
 - Generate Lua code only.
+- DO NOT make up any values that are not in the provided metadata lists.
+- ONLY IF A BUNDLE WAS ENTERED AS DATA, make sure to generate the fallback to detailed logic aspect as shown in the example script, where if no bundle/collection products are detected, it falls back to more detailed matching logic
 - The Lua function should inspect the campaign name and detect matching values from the provided metadata lists.
 - Do NOT assume a fixed positional order unless clearly necessary.
 - Prefer lookup-based matching over simple delimiter splitting.

@@ -46,16 +46,13 @@ export default function OnboardingPage() {
     const entries = Object.entries(answers);
 
     for (const [questionId, answer] of entries) {
-
       await addDoc(collection(db, "responses"), {
         companyId,
         onboardingId,
         questionId,
         answer
       });
-
     }
-
   }
 
 async function generateParsers() {
@@ -127,32 +124,36 @@ async function generateParsers() {
 
   return (
 
-    <main className="min-h-screen bg-slate-50 flex justify-center">
-
-      <div className="w-full max-w-xl mt-16">
-
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 space-y-8">
-
-          <h1 className="text-2xl text-slate-800">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 flex justify-center px-4 py-24">
+      <div className="w-full max-w-3xl">
+        <div className="mb-6 rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-sm px-6 py-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+            Onboarding Wizard
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-900 tracking-tight">
             Company Onboarding
           </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Fill out each section to personalize campaign parsing and reporting.
+          </p>
+        </div>
 
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 md:p-10 space-y-8">
           {currentWave.map((qid) => {
 
             const q = QUESTIONS[qid];
 
             return (
 
-              <div key={qid} className="space-y-3">
-
-                <div className="text-slate-800">
+              <div key={qid} className="space-y-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-5">
+                <div className="text-slate-900 font-medium leading-relaxed">
                   {q.question}
                 </div>
 
 
                 {q.type === "text" && (
                   <input
-                    className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                     onChange={(e) => updateAnswer(qid, e.target.value)}
                   />
                 )}
@@ -161,15 +162,15 @@ async function generateParsers() {
                 {q.type === "number" && (
                   <input
                     type="number"
-                    className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                     onChange={(e) => updateAnswer(qid, Number(e.target.value))}
                   />
                 )}
                 {q.type === "file" && (
                 <div className="space-y-2">
-                    <label className="flex items-center justify-between gap-3 w-full border border-slate-300 rounded-md p-3 cursor-pointer hover:bg-slate-50 transition">
+                    <label className="flex items-center justify-between gap-3 w-full border border-slate-300 rounded-lg bg-white p-3.5 cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition">
                     <div className="flex items-center gap-3 min-w-0">
-                        <span className="rounded-md bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 text-sm whitespace-nowrap">
+                        <span className="rounded-md bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 text-sm font-medium whitespace-nowrap">
                         Choose file
                         </span>
 
@@ -205,7 +206,7 @@ async function generateParsers() {
                     </label>
 
                     {answers[qid]?.type === "file" && (
-                    <div className="text-sm text-green-700">
+                    <div className="text-sm text-emerald-700 font-medium">
                         Uploaded: {answers[qid].originalName}
                     </div>
                     )}
@@ -216,7 +217,7 @@ async function generateParsers() {
                     {[0, 1, 2].map((index) => (
                     <input
                         key={index}
-                        className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                         placeholder={`Competitor ${index + 1}`}
                         value={answers[qid]?.[index]?.name || ""}
                         onChange={(e) => {
@@ -245,7 +246,7 @@ async function generateParsers() {
 
                     return (
                         <div key={goal} className="flex items-center gap-3">
-                        <div className="w-32 text-sm text-slate-700">
+                        <div className="w-32 text-sm font-medium text-slate-700">
                             {goal}
                         </div>
 
@@ -253,7 +254,7 @@ async function generateParsers() {
                             type="number"
                             min="0"
                             max="100"
-                            className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                             placeholder="0"
                             value={currentGoal?.percentage || ""}
                             onChange={(e) => {
@@ -293,10 +294,10 @@ async function generateParsers() {
                         {((answers[qid] as any[]) || []).map((field, index) => (
                         <div
                             key={index}
-                            className="border border-slate-200 rounded-lg p-4 space-y-3"
+                            className="border border-slate-200 rounded-xl bg-white p-4 space-y-3 shadow-sm"
                         >
                             <input
-                            className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                             placeholder="Field name (e.g. Product, Country, Audience)"
                             value={field.fieldName || ""}
                             onChange={(e) => {
@@ -315,7 +316,7 @@ async function generateParsers() {
                             />
 
                             <textarea
-                            className="w-full border border-slate-300 rounded-md p-2 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 min-h-[120px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                             placeholder="Enter one value per line, e.g.&#10;AutoCAD&#10;Revit&#10;Fusion 360"
                             value={field.valuesText || ""}
                             onChange={(e) => {
@@ -335,7 +336,7 @@ async function generateParsers() {
 
                             <button
                             type="button"
-                            className="text-red-600 text-sm underline"
+                            className="text-rose-600 text-sm font-medium hover:text-rose-700 transition"
                             onClick={() => {
                                 setAnswers((prev: any) => {
                                 const current = [...(prev[qid] || [])];
@@ -354,7 +355,7 @@ async function generateParsers() {
 
                         <button
                         type="button"
-                        className="rounded-md bg-slate-200 px-4 py-2 text-slate-800 hover:bg-slate-300"
+                        className="rounded-lg bg-slate-200 px-4 py-2 text-slate-800 font-medium hover:bg-slate-300 transition"
                         onClick={() => {
                             setAnswers((prev: any) => ({
                             ...prev,
@@ -372,7 +373,7 @@ async function generateParsers() {
                 
                 {q.type === "select" && (
                   <select
-                    className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                     onChange={(e) => updateAnswer(qid, e.target.value)}
                   >
                     <option value="">Select</option>
@@ -389,14 +390,14 @@ async function generateParsers() {
 
                     {(answers.q18 || []).map((channel: string) => (
 
-                      <div key={channel} className="space-y-2">
+                      <div key={channel} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
 
-                        <div className="text-sm text-slate-600">
+                        <div className="text-sm text-slate-600 font-medium">
                           {channel} campaign example
                         </div>
 
                         <input
-                          className="w-full border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                           placeholder="Paste campaign naming example"
                           onChange={(e) => {
 
@@ -429,7 +430,7 @@ async function generateParsers() {
 
                       <label
                         key={o}
-                        className="flex items-center gap-2 text-sm text-slate-700"
+                        className="flex items-center gap-2.5 text-sm text-slate-700 rounded-md px-2 py-1.5 hover:bg-slate-100/70 transition"
                       >
 
                         <input
@@ -478,17 +479,7 @@ async function generateParsers() {
           <button
             onClick={submitWave}
             disabled={!companyId}
-            className="
-            w-full
-            bg-slate-900
-            hover:bg-slate-800
-            text-white
-            rounded-lg
-            py-2.5
-            transition
-            disabled:opacity-50
-            disabled:cursor-not-allowed
-            "
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Submit
           </button>

@@ -113,7 +113,9 @@ export default function CompanyPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center items-center">
-        <div className="text-slate-500 text-sm">Loading...</div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+          Loading...
+        </div>
       </main>
     );
   }
@@ -132,6 +134,9 @@ export default function CompanyPage() {
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center">
       <div className="w-full max-w-4xl mt-16 mb-16 space-y-8 px-4">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 mb-3">
+            Company Profile
+          </p>
           <h1 className="text-3xl font-semibold text-slate-900 mb-8 tracking-tight">
             Company Answers
           </h1>
@@ -148,7 +153,7 @@ export default function CompanyPage() {
               return (
                 <div
                   key={r.id}
-                  className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition"
+                  className="border border-slate-200 rounded-xl p-5 bg-slate-50/40 shadow-sm hover:shadow-md hover:border-slate-300 transition"
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <span className="text-sm text-slate-400 font-medium pt-[2px] min-w-[24px]">
@@ -190,6 +195,34 @@ export default function CompanyPage() {
 
                     {r.questionId !== "q32" &&
                       Array.isArray(r.answer) &&
+                      r.answer.every(
+                        (item: any) =>
+                          typeof item === "object" &&
+                          item !== null &&
+                          "goal" in item &&
+                          "percentage" in item
+                      ) && (
+                        <div className="space-y-1">
+                          {r.answer.map((item: any, index: number) => (
+                            <div key={`${item.goal}-${index}`}>
+                              <span className="text-slate-500">{item.goal}:</span>{" "}
+                              <span className="text-slate-800">
+                                {item.percentage}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    {r.questionId !== "q32" &&
+                      Array.isArray(r.answer) &&
+                      !r.answer.every(
+                        (item: any) =>
+                          typeof item === "object" &&
+                          item !== null &&
+                          "goal" in item &&
+                          "percentage" in item
+                      ) &&
                       r.answer.join(", ")}
 
                     {!Array.isArray(r.answer) &&
@@ -213,7 +246,7 @@ export default function CompanyPage() {
 
                           <button
                             onClick={() => handleViewFile(r.answer)}
-                            className="text-blue-600 underline font-medium"
+                            className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 font-medium hover:bg-blue-100 transition"
                           >
                             View file
                           </button>
@@ -244,6 +277,9 @@ export default function CompanyPage() {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 mb-3">
+            Output
+          </p>
           <h2 className="text-3xl font-semibold text-slate-900 mb-8 tracking-tight">
             Campaign Parsers
           </h2>
@@ -258,17 +294,17 @@ export default function CompanyPage() {
             {parsers.map((p) => (
               <div
                 key={p.id}
-                className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm"
+                className="border border-slate-200 rounded-xl p-5 bg-slate-50/40 shadow-sm"
               >
                 <div className="text-lg font-semibold text-slate-900 mb-1">
                   {p.channel}
                 </div>
 
-                <div className="text-sm text-slate-500 mb-4">
+                <div className="text-sm text-slate-600 mb-4">
                   {p.structure}
                 </div>
 
-                <pre className="bg-white border border-slate-200 text-slate-800 text-xs p-4 rounded-xl overflow-x-auto leading-6 whitespace-pre-wrap">
+                <pre className="bg-white border border-slate-200 text-slate-800 text-xs p-4 rounded-xl overflow-x-auto leading-6 whitespace-pre-wrap shadow-inner">
                   {p.luaScript}
                 </pre>
               </div>
