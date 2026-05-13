@@ -14,12 +14,17 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 
+type CompanyListItem = {
+  id: string;
+  name?: string;
+};
+
 export default function CompaniesPage() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [ready, setReady] = useState(false);
+  const [companies, setCompanies] = useState<CompanyListItem[]>([]);
+  const ready = Boolean(user);
 
   async function loadCompanies(uid: string) {
     const userDoc = await getDoc(doc(db, "users", uid));
@@ -41,7 +46,7 @@ export default function CompaniesPage() {
     const results = snapshot.docs.map((d) => ({
       id: d.id,
       ...d.data(),
-    }));
+    })) as CompanyListItem[];
 
     setCompanies(results);
   }
@@ -49,8 +54,9 @@ export default function CompaniesPage() {
   useEffect(() => {
     if (!user) return;
 
-    setReady(true);
-    loadCompanies(user.uid);
+    queueMicrotask(() => {
+      void loadCompanies(user.uid);
+    });
   }, [user]);
 
   if (!ready) {

@@ -1,3 +1,18 @@
+type Question = {
+  question: string;
+  type:
+    | "text"
+    | "number"
+    | "file"
+    | "select"
+    | "multiselect"
+    | "competitors"
+    | "marketing_goals"
+    | "campaign_names";
+  options?: string[];
+  next?: string[] | Record<string, string[]>;
+};
+
 export const INITIAL_WAVE = [
   "q1",
   "q2",
@@ -6,17 +21,14 @@ export const INITIAL_WAVE = [
   "q5",
   "q6",
   "q9",
-  "q10",
-  "q11",
-  "q12",
   "q13",
   "q19",
   "q22",
   "q30",
-  "q32"
+  "q33"
 ];
 
-export const QUESTIONS: Record<string, any> = {
+export const QUESTIONS: Record<string, Question> = {
 
   q1: { question: "What is the Company Name?", type: "text" },
 
@@ -72,21 +84,6 @@ export const QUESTIONS: Record<string, any> = {
     ]
   },
 
-  q10: {
-    question: "Upload or select all the countries the company sells the product in",
-    type: "file"
-  },
-
-  q11: {
-    question: "Upload a list of company product categories",
-    type: "file"
-  },
-
-  q12: {
-    question: "Upload a list of products for the company",
-    type: "file"
-  },
-
   q13: {
     question: "Does the company sell in multiple currencies?",
     type: "select",
@@ -128,7 +125,6 @@ export const QUESTIONS: Record<string, any> = {
     question: "Which platforms does the company spend marketing budget on?",
     type: "multiselect",
     options: ["Television", "Radio", "Print", "Meta - Facebook", "Meta - Instagram", "Google Ads", "Bing", "Yahoo", "Affiliate Networks", "SMS", "Google Display Network", "Display (another company", "LinkedIn", "Influencers", "TikTok", "Youtube", "Forums (quora, reddit"],
-    next: ["q31"]
   },
 
   q19: {
@@ -221,12 +217,8 @@ export const QUESTIONS: Record<string, any> = {
     question: "What percentage of your marketing spend drives to each goal?",
     type: "marketing_goals"
     },
-    q31: {
-    question: "Upload campaign tracking samples for each engine",
-    type: "channel_examples"
-    },
-    q32: {
-    question: "Define the metadata fields that appear in your campaign names",
-    type: "metadata_fields"
+    q33: {
+    question: "Enter campaign names, one per line",
+    type: "campaign_names"
     }
 };

@@ -15,14 +15,106 @@ import { QUESTIONS } from "@/lib/onboardingQuestions";
 import { getSignedFileUrl } from "@/lib/getSignedFileUrl";
 import { onAuthStateChanged } from "firebase/auth";
 
+type FileAnswer = {
+  type: "file";
+  originalName: string;
+  mimeType: string;
+  size: number;
+  bucket: string;
+  path: string;
+};
+
+type ResponseAnswer =
+  | string
+  | number
+  | string[]
+  | FileAnswer
+  | Record<string, unknown>
+  | Array<{ goal: string; percentage: number }>;
+
+type OnboardingResponse = {
+  id: string;
+  questionId: string;
+  answer: ResponseAnswer;
+};
+
+type CompanyProfile = {
+  id: string;
+  name?: string;
+  createdBy?: string;
+  members?: string[];
+  products?: string[];
+};
+
+type CampaignProfile = {
+  id: string;
+  campaignName?: string;
+  products?: string[];
+  source?: string;
+  reviewed?: boolean;
+};
+
+type UserProfile = {
+  role?: string;
+  companyIds?: string[];
+};
+
+function isGoalAnswer(
+  answer: ResponseAnswer
+): answer is Array<{ goal: string; percentage: number }> {
+  return (
+    Array.isArray(answer) &&
+    answer.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "goal" in item &&
+        "percentage" in item
+    )
+  );
+}
+
+function isFileAnswer(answer: ResponseAnswer): answer is FileAnswer {
+  return (
+    typeof answer === "object" &&
+    answer !== null &&
+    !Array.isArray(answer) &&
+    "type" in answer &&
+    answer.type === "file"
+  );
+}
+
+function canViewCompany(
+  userId: string,
+  userProfile: UserProfile | undefined,
+  companyData: CompanyProfile
+) {
+  const role = String(userProfile?.role || "").toLowerCase();
+
+  return (
+    role === "admin" ||
+    companyData.createdBy === userId ||
+    companyData.members?.includes(userId) ||
+    userProfile?.companyIds?.includes(companyData.id) ||
+    false
+  );
+}
+
+function formatAnswerValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Not answered";
+  return String(value);
+}
+
 export default function CompanyPage() {
   const params = useParams();
   const companyId = params?.companiesId as string;
 
-  const [responses, setResponses] = useState<any[]>([]);
-  const [parsers, setParsers] = useState<any[]>([]);
+  const [responses, setResponses] = useState<OnboardingResponse[]>([]);
+  const [company, setCompany] = useState<CompanyProfile | null>(null);
+  const [campaigns, setCampaigns] = useState<CampaignProfile[]>([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     if (!companyId) return;
@@ -35,9 +127,10 @@ export default function CompanyPage() {
       }
 
       try {
+        setLoadError("");
         const userRef = doc(db, "users", currentUser.uid);
         const userSnap = await getDoc(userRef);
-        const role = userSnap.data()?.role;
+        const userProfile = userSnap.data() as UserProfile | undefined;
 
         const companyRef = doc(db, "companies", companyId);
         const companySnap = await getDoc(companyRef);
@@ -48,9 +141,12 @@ export default function CompanyPage() {
           return;
         }
 
-        const companyData = companySnap.data();
+        const companyData = {
+          id: companySnap.id,
+          ...companySnap.data(),
+        } as CompanyProfile;
 
-        if (role !== "admin" && companyData.createdBy !== currentUser.uid) {
+        if (!canViewCompany(currentUser.uid, userProfile, companyData)) {
           setAccessDenied(true);
           setLoading(false);
           return;
@@ -63,36 +159,46 @@ export default function CompanyPage() {
 
         const responsesSnap = await getDocs(responsesQuery);
 
-        let responsesData = responsesSnap.docs.map((d) => ({
+        const responsesData = responsesSnap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
-        }));
+        })) as OnboardingResponse[];
 
-        responsesData.sort((a: any, b: any) => {
+        responsesData.sort((a, b) => {
           const getNum = (qid: string) => Number(qid.replace("q", ""));
           return getNum(a.questionId) - getNum(b.questionId);
         });
 
         setResponses(responsesData);
+        setCompany(companyData);
 
-        const parsersQuery = query(
-          collection(db, "parsers"),
-          where("companyId", "==", companyId)
-        );
+        try {
+          const campaignsSnap = await getDocs(
+            collection(db, "companies", companyId, "campaigns")
+          );
 
-        const parsersSnap = await getDocs(parsersQuery);
+          const campaignsData = campaignsSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          })) as CampaignProfile[];
 
-        const parsersData = parsersSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
+          campaignsData.sort((a, b) =>
+            String(a.campaignName || "").localeCompare(String(b.campaignName || ""))
+          );
 
-        setParsers(parsersData);
+          setCampaigns(campaignsData);
+        } catch (err) {
+          console.error("Error loading campaign products:", err);
+          setCampaigns([]);
+          setLoadError("Company loaded, but campaign products could not be loaded.");
+        }
+
         setAccessDenied(false);
         setLoading(false);
       } catch (err) {
         console.error("Error loading company data:", err);
-        setAccessDenied(true);
+        setLoadError("Could not load this company profile.");
+        setAccessDenied(false);
         setLoading(false);
       }
     });
@@ -100,7 +206,7 @@ export default function CompanyPage() {
     return () => unsub();
   }, [companyId]);
 
-  async function handleViewFile(answer: any) {
+  async function handleViewFile(answer: FileAnswer) {
     try {
       const signedUrl = await getSignedFileUrl(answer.bucket, answer.path);
       window.open(signedUrl, "_blank");
@@ -130,80 +236,52 @@ export default function CompanyPage() {
     );
   }
 
+  const companyProducts = company?.products ?? [];
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center">
       <div className="w-full max-w-4xl mt-16 mb-16 space-y-8 px-4">
+        {loadError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {loadError}
+          </div>
+        )}
+
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 mb-3">
             Company Profile
           </p>
-          <h1 className="text-3xl font-semibold text-slate-900 mb-8 tracking-tight">
-            Company Answers
+          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
+            {company?.name || "Company Answers"}
           </h1>
+          <p className="mt-2 mb-8 text-sm text-slate-600">
+            Onboarding responses and inferred product metadata.
+          </p>
 
           {responses.length === 0 && (
             <div className="text-slate-500 text-sm">No responses found.</div>
           )}
 
-          <div className="space-y-5">
+          <div className="grid gap-4">
             {responses.map((r) => {
               const questionText =
                 QUESTIONS[r.questionId]?.question || r.questionId;
+              const goalAnswer = isGoalAnswer(r.answer) ? r.answer : null;
+              const fileAnswer = isFileAnswer(r.answer) ? r.answer : null;
 
               return (
                 <div
                   key={r.id}
-                  className="border border-slate-200 rounded-xl p-5 bg-slate-50/40 shadow-sm hover:shadow-md hover:border-slate-300 transition"
+                  className="border border-slate-200 rounded-xl bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                 >
-                  <div className="flex items-start gap-3 mb-3">
-                    <span className="text-sm text-slate-400 font-medium pt-[2px] min-w-[24px]">
-                      {r.questionId.replace("q", "")}.
-                    </span>
-
-                    <span className="text-[17px] font-medium text-slate-900 leading-snug">
-                      {questionText}
-                    </span>
+                  <div className="text-[15px] font-semibold text-slate-900 leading-snug">
+                    {questionText}
                   </div>
 
-                  <div className="text-slate-700 text-[15px] leading-7">
-                    {r.questionId === "q32" && Array.isArray(r.answer) && (
-                      <div className="space-y-3">
-                        {r.answer.map((field: any, index: number) => (
-                          <div
-                            key={index}
-                            className="rounded-lg border border-slate-200 p-4 bg-slate-50"
-                          >
-                            <div className="mb-1">
-                              <span className="text-slate-500">
-                                Field Name:
-                              </span>{" "}
-                              <span className="text-slate-900 font-medium">
-                                {field.fieldName || "(empty)"}
-                              </span>
-                            </div>
-
-                            <div className="whitespace-pre-wrap">
-                              <span className="text-slate-500">Values:</span>{" "}
-                              <span className="text-slate-800">
-                                {field.valuesText || "(empty)"}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {r.questionId !== "q32" &&
-                      Array.isArray(r.answer) &&
-                      r.answer.every(
-                        (item: any) =>
-                          typeof item === "object" &&
-                          item !== null &&
-                          "goal" in item &&
-                          "percentage" in item
-                      ) && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 text-[15px] leading-7">
+                    {goalAnswer && (
                         <div className="space-y-1">
-                          {r.answer.map((item: any, index: number) => (
+                          {goalAnswer.map((item, index) => (
                             <div key={`${item.goal}-${index}`}>
                               <span className="text-slate-500">{item.goal}:</span>{" "}
                               <span className="text-slate-800">
@@ -214,38 +292,29 @@ export default function CompanyPage() {
                         </div>
                       )}
 
-                    {r.questionId !== "q32" &&
-                      Array.isArray(r.answer) &&
-                      !r.answer.every(
-                        (item: any) =>
-                          typeof item === "object" &&
-                          item !== null &&
-                          "goal" in item &&
-                          "percentage" in item
-                      ) &&
-                      r.answer.join(", ")}
+                    {Array.isArray(r.answer) &&
+                      !isGoalAnswer(r.answer) &&
+                      (r.answer.length > 0 ? r.answer.join(", ") : "Not answered")}
 
-                    {!Array.isArray(r.answer) &&
-                      typeof r.answer === "object" &&
-                      r.answer?.type === "file" && (
+                    {fileAnswer && (
                         <div className="space-y-2">
                           <div>
                             <span className="text-slate-500">File:</span>{" "}
-                            {r.answer.originalName}
+                            {fileAnswer.originalName}
                           </div>
 
                           <div>
                             <span className="text-slate-500">Type:</span>{" "}
-                            {r.answer.mimeType}
+                            {fileAnswer.mimeType}
                           </div>
 
                           <div>
                             <span className="text-slate-500">Size:</span>{" "}
-                            {r.answer.size} bytes
+                            {fileAnswer.size} bytes
                           </div>
 
                           <button
-                            onClick={() => handleViewFile(r.answer)}
+                            onClick={() => handleViewFile(fileAnswer)}
                             className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 font-medium hover:bg-blue-100 transition"
                           >
                             View file
@@ -255,20 +324,21 @@ export default function CompanyPage() {
 
                     {!Array.isArray(r.answer) &&
                       typeof r.answer === "object" &&
-                      r.answer?.type !== "file" && (
+                      r.answer !== null &&
+                      !fileAnswer && (
                         <div className="space-y-1">
                           {Object.entries(r.answer).map(([key, value]) => (
                             <div key={key}>
                               <span className="text-slate-500">{key}:</span>{" "}
-                              {String(value)}
+                              {formatAnswerValue(value)}
                             </div>
                           ))}
                         </div>
                       )}
 
-                    {typeof r.answer === "string" && r.answer}
+                    {typeof r.answer === "string" && formatAnswerValue(r.answer)}
 
-                    {typeof r.answer === "number" && String(r.answer)}
+                    {typeof r.answer === "number" && formatAnswerValue(r.answer)}
                   </div>
                 </div>
               );
@@ -278,35 +348,60 @@ export default function CompanyPage() {
 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 mb-3">
-            Output
+            Product Metadata
           </p>
           <h2 className="text-3xl font-semibold text-slate-900 mb-8 tracking-tight">
-            Campaign Parsers
+            Campaign Products
           </h2>
 
-          {parsers.length === 0 && (
+          {companyProducts.length > 0 && (
+            <div className="mb-8">
+              <div className="text-sm font-medium text-slate-700 mb-3">
+                Company products
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {companyProducts.map((product) => (
+                  <span
+                    key={product}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
+                  >
+                    {product}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {campaigns.length === 0 && (
             <div className="text-slate-500 text-sm">
-              No campaign parsers generated.
+              No campaign products stored.
             </div>
           )}
 
           <div className="space-y-6">
-            {parsers.map((p) => (
+            {campaigns.map((campaign) => (
               <div
-                key={p.id}
+                key={campaign.id}
                 className="border border-slate-200 rounded-xl p-5 bg-slate-50/40 shadow-sm"
               >
                 <div className="text-lg font-semibold text-slate-900 mb-1">
-                  {p.channel}
+                  {campaign.campaignName}
                 </div>
 
                 <div className="text-sm text-slate-600 mb-4">
-                  {p.structure}
+                  {campaign.products?.length
+                    ? campaign.products.join(", ")
+                    : "No products inferred"}
                 </div>
 
-                <pre className="bg-white border border-slate-200 text-slate-800 text-xs p-4 rounded-xl overflow-x-auto leading-6 whitespace-pre-wrap shadow-inner">
-                  {p.luaScript}
-                </pre>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                    {campaign.source}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                    {campaign.reviewed ? "reviewed" : "unreviewed"}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

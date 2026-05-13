@@ -80,10 +80,10 @@ export async function POST(req: NextRequest) {
         uploadedAt: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
   console.error("Upload failed:", error);
   return NextResponse.json(
-    { error: error?.message || String(error) || "Upload failed" },
+    { error: error instanceof Error ? error.message : String(error) || "Upload failed" },
     { status: 500 }
   );
 }

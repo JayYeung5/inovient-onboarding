@@ -2,7 +2,15 @@ import admin from "firebase-admin";
 
 function getPrivateKey() {
   const key = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
-  return key ? key.replace(/\\n/g, "\n") : undefined;
+
+  if (!key) return undefined;
+
+  return key
+    .trim()
+    .replace(/^["']|["'],?$/g, "")
+    .replace(/,\s*$/g, "")
+    .replace(/\\n/g, "\n")
+    .trim();
 }
 
 if (!admin.apps.length) {
@@ -16,3 +24,4 @@ if (!admin.apps.length) {
 }
 
 export const adminAuth = admin.auth();
+export const adminDb = admin.firestore();

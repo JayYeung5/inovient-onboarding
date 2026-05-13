@@ -4,8 +4,31 @@ import { useState, useEffect } from "react";
 import { INITIAL_WAVE, QUESTIONS } from "@/lib/onboardingQuestions";
 import { getNextWave } from "@/lib/nextWave";
 import { useRouter, useParams } from "next/navigation";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+
+type FileAnswer = {
+  type: "file";
+  originalName: string;
+};
+
+type CompetitorAnswer = {
+  name?: string;
+};
+
+type MarketingGoalAnswer = {
+  goal: string;
+  percentage: number;
+};
+
+type Answer =
+  | string
+  | number
+  | string[]
+  | FileAnswer
+  | CompetitorAnswer[]
+  | MarketingGoalAnswer[];
 
 export default function OnboardingPage() {
 
@@ -15,111 +38,155 @@ export default function OnboardingPage() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [currentWave, setCurrentWave] = useState(INITIAL_WAVE);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
 
-    async function loadOnboarding() {
-      const ref = doc(db, "onboardings", onboardingId);
-      const snap = await getDoc(ref);
-
-      if (snap.exists()) {
-        setCompanyId(snap.data().companyId);
+    const unsub = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        setAccessDenied(true);
+        setLoading(false);
+        return;
       }
-    }
 
-    loadOnboarding();
+      try {
+        const ref = doc(db, "onboardings", onboardingId);
+        const snap = await getDoc(ref);
 
+        if (!snap.exists()) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
+
+        const loadedCompanyId = String(snap.data().companyId || "");
+        const companyRef = doc(db, "companies", loadedCompanyId);
+        const companySnap = await getDoc(companyRef);
+
+        if (!companySnap.exists()) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
+
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        const role = userSnap.data()?.role;
+        const companyData = companySnap.data();
+
+        if (role !== "admin" && companyData.createdBy !== currentUser.uid) {
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
+
+        setCompanyId(loadedCompanyId);
+        setAccessDenied(false);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error loading onboarding:", err);
+        setAccessDenied(true);
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
   }, [onboardingId]);
 
-  function updateAnswer(id: string, value: any) {
+  function updateAnswer(id: string, value: Answer) {
     setAnswers((prev) => ({
       ...prev,
       [id]: value
     }));
   }
 
-  async function saveAnswers() {
-
-    if (!companyId) return;
-
-    const entries = Object.entries(answers);
-
-    for (const [questionId, answer] of entries) {
-      await addDoc(collection(db, "responses"), {
-        companyId,
-        onboardingId,
-        questionId,
-        answer
-      });
-    }
-  }
-
-async function generateParsers() {
-  const rawMetadataFields = answers.q32 || [];
-
-  if (rawMetadataFields.length === 0) return;
-
-  const res = await fetch("/api/generate-parser", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      rawMetadataFields
-    })
-  });
-
-  const data = await res.json();
-  const parsers = data.parsers;
-
-  for (const channel in parsers) {
-    const parser = parsers[channel];
-
-    await fetch("/api/store-parser", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        companyId,
-        channel,
-        structure: parser.structure,
-        luaScript: parser.lua
-      })
-    });
-  }
-}
-
   async function submitWave() {
+    if (submitting) return;
 
     const next = getNextWave(answers);
     const unanswered = next.filter((qid) => answers[qid] === undefined);
 
     if (unanswered.length === 0) {
+      try {
+        setSubmitting(true);
+        setError("");
+        const user = auth.currentUser;
 
-      await saveAnswers();
-      await generateParsers();
+        if (!user) {
+          throw new Error("You must be logged in to submit onboarding.");
+        }
 
-      await fetch("/api/send-onboarding-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          companyId,
-          answers
-        })
-      });
+        const idToken = await user.getIdToken();
+        const submitRes = await fetch("/api/complete-onboarding", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            onboardingId,
+            answers,
+          }),
+        });
+        const submitData = await submitRes.json();
 
-      alert("Onboarding complete!");
-      router.push("/companies");
+        if (!submitRes.ok) {
+          throw new Error(submitData.error || "Onboarding submission failed.");
+        }
+
+        await fetch("/api/send-onboarding-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            companyId,
+            answers
+          })
+        });
+
+        alert("Onboarding complete!");
+        router.push("/companies");
+      } catch (err) {
+        console.error(err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Onboarding submission failed. Please try again."
+        );
+      } finally {
+        setSubmitting(false);
+      }
       return;
 
     }
 
     setCurrentWave(unanswered);
 
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center items-center">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+          Loading...
+        </div>
+      </main>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center items-center">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-slate-700">
+          You do not have access to this onboarding.
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -134,7 +201,7 @@ async function generateParsers() {
             Company Onboarding
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Fill out each section to personalize campaign parsing and reporting.
+            Fill out each section to personalize company setup and reporting.
           </p>
         </div>
 
@@ -175,7 +242,7 @@ async function generateParsers() {
                         </span>
 
                         <span className="text-sm text-slate-500 truncate">
-                        {answers[qid]?.originalName || "No file selected"}
+                        {(answers[qid] as FileAnswer | undefined)?.originalName || "No file selected"}
                         </span>
                     </div>
 
@@ -205,9 +272,9 @@ async function generateParsers() {
                     />
                     </label>
 
-                    {answers[qid]?.type === "file" && (
+                    {(answers[qid] as FileAnswer | undefined)?.type === "file" && (
                     <div className="text-sm text-emerald-700 font-medium">
-                        Uploaded: {answers[qid].originalName}
+                        Uploaded: {(answers[qid] as FileAnswer).originalName}
                     </div>
                     )}
                 </div>
@@ -219,10 +286,10 @@ async function generateParsers() {
                         key={index}
                         className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                         placeholder={`Competitor ${index + 1}`}
-                        value={answers[qid]?.[index]?.name || ""}
+                        value={(answers[qid] as CompetitorAnswer[] | undefined)?.[index]?.name || ""}
                         onChange={(e) => {
-                        setAnswers((prev: any) => {
-                            const current = [...(prev[qid] || [])];
+                        setAnswers((prev) => {
+                            const current = [...((prev[qid] as CompetitorAnswer[] | undefined) || [])];
 
                             current[index] = {
                             ...current[index],
@@ -242,7 +309,9 @@ async function generateParsers() {
                 {q.type === "marketing_goals" && (
                 <div className="space-y-3">
                     {["Awareness", "Revenue", "Trials", "Leads"].map((goal) => {
-                    const currentGoal = answers[qid]?.find((item: any) => item.goal === goal);
+                    const currentGoal = (answers[qid] as MarketingGoalAnswer[] | undefined)?.find(
+                      (item) => item.goal === goal
+                    );
 
                     return (
                         <div key={goal} className="flex items-center gap-3">
@@ -258,10 +327,10 @@ async function generateParsers() {
                             placeholder="0"
                             value={currentGoal?.percentage || ""}
                             onChange={(e) => {
-                            setAnswers((prev: any) => {
-                                const current = [...(prev[qid] || [])];
+                            setAnswers((prev) => {
+                                const current = [...((prev[qid] as MarketingGoalAnswer[] | undefined) || [])];
                                 const existingIndex = current.findIndex(
-                                (item: any) => item.goal === goal
+                                (item) => item.goal === goal
                                 );
 
                                 const updatedGoal = {
@@ -289,87 +358,14 @@ async function generateParsers() {
                     })}
                 </div>
                 )}
-                {q.type === "metadata_fields" && (
-                    <div className="space-y-4">
-                        {((answers[qid] as any[]) || []).map((field, index) => (
-                        <div
-                            key={index}
-                            className="border border-slate-200 rounded-xl bg-white p-4 space-y-3 shadow-sm"
-                        >
-                            <input
-                            className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
-                            placeholder="Field name (e.g. Product, Country, Audience)"
-                            value={field.fieldName || ""}
-                            onChange={(e) => {
-                                setAnswers((prev: any) => {
-                                const current = [...(prev[qid] || [])];
-                                current[index] = {
-                                    ...current[index],
-                                    fieldName: e.target.value
-                                };
-                                return {
-                                    ...prev,
-                                    [qid]: current
-                                };
-                                });
-                            }}
-                            />
-
-                            <textarea
-                            className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 min-h-[120px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
-                            placeholder="Enter one value per line, e.g.&#10;AutoCAD&#10;Revit&#10;Fusion 360"
-                            value={field.valuesText || ""}
-                            onChange={(e) => {
-                                setAnswers((prev: any) => {
-                                const current = [...(prev[qid] || [])];
-                                current[index] = {
-                                    ...current[index],
-                                    valuesText: e.target.value
-                                };
-                                return {
-                                    ...prev,
-                                    [qid]: current
-                                };
-                                });
-                            }}
-                            />
-
-                            <button
-                            type="button"
-                            className="text-rose-600 text-sm font-medium hover:text-rose-700 transition"
-                            onClick={() => {
-                                setAnswers((prev: any) => {
-                                const current = [...(prev[qid] || [])];
-                                current.splice(index, 1);
-                                return {
-                                    ...prev,
-                                    [qid]: current
-                                };
-                                });
-                            }}
-                            >
-                            Remove field
-                            </button>
-                        </div>
-                        ))}
-
-                        <button
-                        type="button"
-                        className="rounded-lg bg-slate-200 px-4 py-2 text-slate-800 font-medium hover:bg-slate-300 transition"
-                        onClick={() => {
-                            setAnswers((prev: any) => ({
-                            ...prev,
-                            [qid]: [
-                                ...(prev[qid] || []),
-                                { fieldName: "", valuesText: "" }
-                            ]
-                            }));
-                        }}
-                        >
-                        Add metadata field
-                        </button>
-                    </div>
-                    )}
+                {q.type === "campaign_names" && (
+                  <textarea
+                    className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 min-h-[180px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+                    placeholder={"Summer Glow SPF Push\nHydration Bundle Launch"}
+                    value={String(answers[qid] || "")}
+                    onChange={(e) => updateAnswer(qid, e.target.value)}
+                  />
+                )}
                 
                 {q.type === "select" && (
                   <select
@@ -381,43 +377,6 @@ async function generateParsers() {
                       <option key={o}>{o}</option>
                     ))}
                   </select>
-                )}
-
-
-                {q.type === "channel_examples" && (
-
-                  <div className="space-y-6">
-
-                    {(answers.q18 || []).map((channel: string) => (
-
-                      <div key={channel} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-
-                        <div className="text-sm text-slate-600 font-medium">
-                          {channel} campaign example
-                        </div>
-
-                        <input
-                          className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
-                          placeholder="Paste campaign naming example"
-                          onChange={(e) => {
-
-                            setAnswers((prev: any) => ({
-                              ...prev,
-                              q31: {
-                                ...prev.q31,
-                                [channel]: e.target.value
-                              }
-                            }));
-
-                          }}
-                        />
-
-                      </div>
-
-                    ))}
-
-                  </div>
-
                 )}
 
 
@@ -437,9 +396,9 @@ async function generateParsers() {
                           type="checkbox"
                           onChange={(e) => {
 
-                            setAnswers((prev: any) => {
+                            setAnswers((prev) => {
 
-                              const current = prev[qid] || [];
+                              const current = (prev[qid] as string[] | undefined) || [];
 
                               if (e.target.checked) {
                                 return {
@@ -476,12 +435,18 @@ async function generateParsers() {
 
 
           {}
+          {error && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+
           <button
             onClick={submitWave}
-            disabled={!companyId}
+            disabled={!companyId || submitting}
             className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Submit
+            {submitting ? "Processing..." : "Submit"}
           </button>
 
         </div>

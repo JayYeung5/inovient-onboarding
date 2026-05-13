@@ -1,6 +1,6 @@
 import { QUESTIONS } from "./onboardingQuestions";
 
-export function getNextWave(answers: Record<string, any>) {
+export function getNextWave(answers: Record<string, unknown>) {
 
   const nextQuestions = new Set<string>();
 

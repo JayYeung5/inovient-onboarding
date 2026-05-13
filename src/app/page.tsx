@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, doc, updateDoc, arrayUnion } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 
 export default function HomePage() {
@@ -26,36 +24,30 @@ export default function HomePage() {
 
     try {
       setLoading(true);
+      const idToken = await user.getIdToken();
 
-      const companyRef = await addDoc(collection(db, "companies"), {
-        name: companyName,
-        createdBy: user.uid,
-        members: [user.uid],
-        createdAt: Date.now()
+      const res = await fetch("/api/create-company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          companyName,
+        }),
       });
 
-      const companyId = companyRef.id;
+      const data = await res.json();
 
-      const userRef = doc(db, "users", user.uid);
+      if (!res.ok) {
+        throw new Error(data.error || "Error creating company");
+      }
 
-      await updateDoc(userRef, {
-        companyIds: arrayUnion(companyId)
-      });
-
-      const onboardingRef = await addDoc(collection(db, "onboardings"), {
-        companyId,
-        createdBy: user.uid,
-        status: "started",
-        createdAt: Date.now()
-      });
-
-      const onboardingId = onboardingRef.id;
-
-      router.push(`/onboarding/${onboardingId}`);
+      router.push(`/onboarding/${data.onboardingId}`);
 
     } catch (err) {
       console.error(err);
-      alert("Error creating company");
+      alert(err instanceof Error ? err.message : "Error creating company");
     } finally {
       setLoading(false);
     }
